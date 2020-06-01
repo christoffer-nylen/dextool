@@ -1033,6 +1033,17 @@ struct Symbols {
     }
 }
 
+/// Derive all overload sets
+OverloadSet[] derive(ref Ast ast) {
+
+}
+
+/// A set of symbols that together is the overload set for the function call
+/// resolution.
+struct OverloadSet {
+    BinaryOp[] set;
+}
+
 private:
 
 mixin template NodeKind() {
