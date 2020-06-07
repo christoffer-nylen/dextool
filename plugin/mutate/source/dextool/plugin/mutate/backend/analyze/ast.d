@@ -443,7 +443,7 @@ class Expr : Node {
 }
 
 /// A function definition.
-class Function : Node {
+final class Function : Node {
     mixin NodeKind;
 
     /// If the function has a return type it is associated with this expression.
@@ -451,7 +451,7 @@ class Function : Node {
 }
 
 /// A function call.
-class Call : Expr {
+final class Call : Expr {
     mixin NodeKind;
 }
 
@@ -465,8 +465,15 @@ class Operator : Node {
  * It is intended to be possible to delete it. But it may need to be further
  * analyzed for e.g. `Return` nodes.
  */
-class Block : Node {
+final class Block : Node {
     mixin NodeKind;
+}
+
+/** The node contains all symbols that are used in e.g. operator overload
+ * resolution.
+ */
+final class Scope : Node {
+    //Node[] 
 }
 
 /** The code for one of the branches resulting from a condition.
@@ -477,7 +484,7 @@ class Block : Node {
  * The important aspect is that the branch is not an expression. It can't be
  * evaluated to a value of a type.
  */
-class Branch : Node {
+final class Branch : Node {
     mixin NodeKind;
 
     // The inside of a branch node wherein code can be injected.
@@ -485,21 +492,21 @@ class Branch : Node {
 }
 
 /// Results in the bottom type or up.
-class Return : Expr {
+final class Return : Expr {
     mixin NodeKind;
 }
 
 /// A condition wraps "something" which always evaluates to a boolean.
-class Condition : Expr {
+final class Condition : Expr {
     mixin NodeKind;
 }
 
-class VarDecl : Expr {
+final class VarDecl : Expr {
     mixin NodeKind;
     bool isConst;
 }
 
-class VarRef : Expr {
+final class VarRef : Expr {
     mixin NodeKind;
     // should always refer to something
     VarDecl to;
@@ -528,7 +535,7 @@ class UnaryOp : Expr {
     }
 }
 
-class OpNegate : UnaryOp {
+final class OpNegate : UnaryOp {
     mixin NodeKind;
 }
 
@@ -549,95 +556,95 @@ class BinaryOp : Expr {
     }
 }
 
-class OpAssign : BinaryOp {
+final class OpAssign : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignAdd : BinaryOp {
+final class OpAssignAdd : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignSub : BinaryOp {
+final class OpAssignSub : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignMul : BinaryOp {
+final class OpAssignMul : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignDiv : BinaryOp {
+final class OpAssignDiv : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignMod : BinaryOp {
+final class OpAssignMod : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignAndBitwise : BinaryOp {
+final class OpAssignAndBitwise : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAssignOrBitwise : BinaryOp {
+final class OpAssignOrBitwise : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAdd : BinaryOp {
+final class OpAdd : BinaryOp {
     mixin NodeKind;
 }
 
-class OpSub : BinaryOp {
+final class OpSub : BinaryOp {
     mixin NodeKind;
 }
 
-class OpMul : BinaryOp {
+final class OpMul : BinaryOp {
     mixin NodeKind;
 }
 
-class OpDiv : BinaryOp {
+final class OpDiv : BinaryOp {
     mixin NodeKind;
 }
 
-class OpMod : BinaryOp {
+final class OpMod : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAnd : BinaryOp {
+final class OpAnd : BinaryOp {
     mixin NodeKind;
 }
 
-class OpAndBitwise : BinaryOp {
+final class OpAndBitwise : BinaryOp {
     mixin NodeKind;
 }
 
-class OpOr : BinaryOp {
+final class OpOr : BinaryOp {
     mixin NodeKind;
 }
 
-class OpOrBitwise : BinaryOp {
+final class OpOrBitwise : BinaryOp {
     mixin NodeKind;
 }
 
-class OpEqual : BinaryOp {
+final class OpEqual : BinaryOp {
     mixin NodeKind;
 }
 
-class OpLess : BinaryOp {
+final class OpLess : BinaryOp {
     mixin NodeKind;
 }
 
-class OpGreater : BinaryOp {
+final class OpGreater : BinaryOp {
     mixin NodeKind;
 }
 
-class OpLessEq : BinaryOp {
+final class OpLessEq : BinaryOp {
     mixin NodeKind;
 }
 
-class OpGreaterEq : BinaryOp {
+final class OpGreaterEq : BinaryOp {
     mixin NodeKind;
 }
 
-class OpNotEqual : BinaryOp {
+final class OpNotEqual : BinaryOp {
     mixin NodeKind;
 }
 
@@ -1035,7 +1042,7 @@ struct Symbols {
 
 /// Derive all overload sets
 OverloadSet[] derive(ref Ast ast) {
-
+    return typeof(return).init;
 }
 
 /// A set of symbols that together is the overload set for the function call
@@ -1051,5 +1058,221 @@ mixin template NodeKind() {
         import std.traits : Unqual;
 
         mixin("return Kind." ~ Unqual!(typeof(this)).stringof ~ ";");
+    }
+}
+
+struct StringEntry {
+    uint hash;
+    uint vptr;
+}
+
+// StringValue is a variable-length structure. It has neither proper c'tors nor a
+// factory method because the only thing which should be creating these is StringTable.
+struct StringValue(T) {
+    T value; //T is/should typically be a pointer or a slice
+    private size_t length;
+
+    char* lstring() @nogc nothrow pure return  {
+        return cast(char*)(&this + 1);
+    }
+
+    size_t len() const @nogc nothrow pure @safe {
+        return length;
+    }
+
+    const(char)* toDchars() const @nogc nothrow pure return  {
+        return cast(const(char)*)(&this + 1);
+    }
+
+    /// Returns: The content of this entry as a D slice
+    inout(char)[] toString() inout @nogc nothrow pure {
+        return (cast(inout(char)*)(&this + 1))[0 .. length];
+    }
+}
+
+struct StringTable(T) {
+private:
+    StringEntry[] table;
+    ubyte*[] pools;
+    size_t nfill;
+    size_t count;
+    size_t countTrigger; // amount which will trigger growing the table
+
+public:
+    this(size_t size) nothrow pure {
+        import std.math : nextPow2, max;
+
+        table = new StringEntry[max(nextPow2(size), 32)];
+    }
+
+    /**
+    Looks up the given string in the string table and returns its associated
+    value.
+
+    Params:
+     s = the string to look up
+     length = the length of $(D_PARAM s)
+     str = the string to look up
+
+    Returns: the string's associated value, or `null` if the string doesn't
+     exist in the string table
+    */
+    inout(StringValue!T)* lookup(const(char)[] str) inout @nogc nothrow pure {
+        const hash = typeid(str).getHash(str);
+        const i = findSlot(hash, str);
+        return getValue(table[i].vptr);
+    }
+
+    /**
+    Inserts the given string and the given associated value into the string
+    table.
+
+    Params:
+     s = the string to insert
+     length = the length of $(D_PARAM s)
+     ptrvalue = the value to associate with the inserted string
+     str = the string to insert
+     value = the value to associate with the inserted string
+
+    Returns: the newly inserted value, or `null` if the string table already
+     contains the string
+    */
+    StringValue!(T)* insert(const(char)[] str, T value) nothrow pure {
+        const hash = typeid(str).getHash(str);
+        size_t i = findSlot(hash, str);
+        if (table[i].vptr)
+            return null; // already in table
+        if (++count > countTrigger) {
+            grow();
+            i = findSlot(hash, str);
+        }
+        table[i].hash = hash;
+        table[i].vptr = allocValue(str, value);
+        // printf("insert %.*s %p\n", cast(int)str.length, str.ptr, table[i].value ?: NULL);
+        return getValue(table[i].vptr);
+    }
+
+    /// ditto
+    StringValue!(T)* insert(const(char)* s, size_t length, T value) nothrow pure {
+        return insert(s[0 .. length], value);
+    }
+
+    StringValue!(T)* update(const(char)[] str) nothrow pure {
+        const(size_t) hash = calcHash(str);
+        size_t i = findSlot(hash, str);
+        if (!table[i].vptr) {
+            if (++count > countTrigger) {
+                grow();
+                i = findSlot(hash, str);
+            }
+            table[i].hash = hash;
+            table[i].vptr = allocValue(str, T.init);
+        }
+        // printf("update %.*s %p\n", cast(int)str.length, str.ptr, table[i].value ?: NULL);
+        return getValue(table[i].vptr);
+    }
+
+    StringValue!(T)* update(const(char)* s, size_t length) nothrow pure {
+        return update(s[0 .. length]);
+    }
+
+    /********************************
+     * Walk the contents of the string table,
+     * calling fp for each entry.
+     * Params:
+     *      fp = function to call. Returns !=0 to stop
+     * Returns:
+     *      last return value of fp call
+     */
+    int apply(int function(const(StringValue!T)*) nothrow fp) nothrow {
+        foreach (const se; table) {
+            if (!se.vptr)
+                continue;
+            const sv = getValue(se.vptr);
+            int result = (*fp)(sv);
+            if (result)
+                return result;
+        }
+        return 0;
+    }
+
+    /// ditto
+    extern (D) int opApply(scope int delegate(const(StringValue!T)*) nothrow dg) nothrow {
+        foreach (const se; table) {
+            if (!se.vptr)
+                continue;
+            const sv = getValue(se.vptr);
+            int result = dg(sv);
+            if (result)
+                return result;
+        }
+        return 0;
+    }
+
+private:
+    /// Free all memory in use by this StringTable
+    void freeMem() nothrow pure {
+        foreach (pool; pools)
+            mem.xfree(pool);
+        mem.xfree(table.ptr);
+        mem.xfree(pools.ptr);
+        table = null;
+        pools = null;
+    }
+
+    uint allocValue(const(char)[] str, T value) nothrow pure {
+        const(size_t) nbytes = (StringValue!T).sizeof + str.length + 1;
+        if (!pools.length || nfill + nbytes > POOL_SIZE) {
+            pools = (cast(ubyte**) mem.xrealloc(pools.ptr, (pools.length + 1) * (pools[0]).sizeof))[0
+                .. pools.length + 1];
+            pools[$ - 1] = cast(ubyte*) mem.xmalloc(nbytes > POOL_SIZE ? nbytes : POOL_SIZE);
+            if (mem.isGCEnabled)
+                memset(pools[$ - 1], 0xff, POOL_SIZE); // 0xff less likely to produce GC pointer
+            nfill = 0;
+        }
+        StringValue!(T)* sv = cast(StringValue!(T)*)&pools[$ - 1][nfill];
+        sv.value = value;
+        sv.length = str.length;
+        .memcpy(sv.lstring(), str.ptr, str.length);
+        sv.lstring()[str.length] = 0;
+        const(uint) vptr = cast(uint)(pools.length << POOL_BITS | nfill);
+        nfill += nbytes + (-nbytes & 7); // align to 8 bytes
+        return vptr;
+    }
+
+    inout(StringValue!T)* getValue(uint vptr) inout @nogc nothrow pure {
+        if (!vptr)
+            return null;
+        const(size_t) idx = (vptr >> POOL_BITS) - 1;
+        const(size_t) off = vptr & POOL_SIZE - 1;
+        return cast(inout(StringValue!T)*)&pools[idx][off];
+    }
+
+    size_t findSlot(hash_t hash, const(char)[] str) const @nogc nothrow pure {
+        // quadratic probing using triangular numbers
+        // http://stackoverflow.com/questions/2348187/moving-from-linear-probing-to-quadratic-probing-hash-collisons/2349774#2349774
+        for (size_t i = hash & (table.length - 1), j = 1;; ++j) {
+            const(StringValue!T)* sv;
+            auto vptr = table[i].vptr;
+            if (!vptr || table[i].hash == hash && (sv = getValue(vptr))
+                    .length == str.length && .memcmp(str.ptr, sv.toDchars(), str.length) == 0)
+                return i;
+            i = (i + j) & (table.length - 1);
+        }
+    }
+
+    void grow() nothrow pure {
+        const odim = table.length;
+        auto otab = table;
+        const ndim = table.length * 2;
+        countTrigger = (ndim * loadFactorNumerator) / loadFactorDenominator;
+        table = (cast(StringEntry*) mem.xcalloc_noscan(ndim, (table[0]).sizeof))[0 .. ndim];
+        foreach (const se; otab[0 .. odim]) {
+            if (!se.vptr)
+                continue;
+            const sv = getValue(se.vptr);
+            table[findSlot(se.hash, sv.toString())] = se;
+        }
+        mem.xfree(otab.ptr);
     }
 }
