@@ -307,13 +307,17 @@ Report-mode for the plugin. Is used to generate a result-report at any given
 moment (before, after or during mutation testing execution). Can also be used
 to generate specific result that helps a user improve test cases among other.
 
-Not all `--section` are supported by all report `--style`s. `plain` supports
-all of them. The rest are implemented as needed and if it is feasible.
-
 ```sh
---logdir
+--style
 ```
-Directory to write log files to (default: .).
+Format of the report (default: plain).
+ - *plain* : Generates a plain text summary of the result and prints it in the 
+   terminal window.
+ - *compiler* : Same as *plain* but in compiler-format.
+ - *json* : Same as *plain* but in .json-format.
+ - *html* : Generates an html-report that can be viewed in a browser by opening
+   the generated *index.html*-file. This is usually the main way to inspect a
+   mutation testing report.
 
 ```sh
 --section
@@ -324,8 +328,8 @@ Sections to include in the report.
 |----------------------------------|-------|------|------|
 | alive                            | ✔     | ✔    |      |
 | killed                           | ✔     | ✔    |      |
-| all_mut                          | ✔     | ✔    |      |
-| summary                          | ✔     | ✔    | ✔    |
+| all_mut                          | ✔     | ✔    | (✔)  |
+| summary                          | ✔     | ✔    | (✔)  |
 | mut_stat                         | ✔     |      |      |
 | tc_killed                        | ✔     |      |      |
 | tc_stat                          | ✔     | ✔    |      |
@@ -345,8 +349,9 @@ Sections to include in the report.
 | marked_mutants                   | ✔     |      |      |
 | trend                            | ✔     | ✔    | ✔    |
 
-**Note**: styles may have automatic support for sections which are always on.
-These are not shown in the table.
+✔: Supported.
+
+(✔): Supported and always included.
 
 **alive**: Only report alive mutants.
 
@@ -422,19 +427,9 @@ Sort order when reporting test case kill stat.
  - *bottom* : Sort from bottom to top.
 
 ```sh
---style
+--logdir
 ```
-Kind of report to generate. Lets a user specify if the format of the report.
-This could be used if the report is to be pased into an excel-document, or
-viewed graphically in the browser etc.
- - *plain* : Generates a plain text summary of the result and prints it in the
-   terminal window.
- - *compiler* : Same as *plain* but in compiler-format.
- - *json* : Same as *plain* but in .json-format.
- - *html* : Generates an html-report with all the chosen sections. Is the main
-   way of inspect mutation testing result since many of the other commands for
-   *Report* is linked to this kind of report. Can be viewed in a browser by
-   opening the generated *index.html*-file directly.
+Directory to write log files to (default: .).
 
 ## Test
 
@@ -455,7 +450,7 @@ mutant is injected.
 --dry-run
 ```
 Do not write mutants to the filesystem. This is intended to be used by dextools
-internal tests to fejk mutation testing runs.
+internal tests to fake mutation testing runs.
 
 ```sh
 --order
@@ -529,7 +524,7 @@ that between 50-100% of the mutants can be tested pretty fast.
 ```
 The order the mutants are tested when running mutation testing on a diff.
 Normally the year+week is used as a seed in order to keep the mutants that are
-tested stabel over multiple updates of a pull request. This option can be used
+tested stable over multiple updates of a pull request. This option can be used
 to force a specific seed to be used.
 
 ```sh
@@ -552,7 +547,7 @@ This is to reduce the amount of wasted work (compiling invalid schemas).
 --use-early-stop
 ```
 If dextool should stop executing the test suite as soon as it finds one failing
-test case. The *precicion* of the reports containing sections about test cases
+test case. The *precision* of the reports containing sections about test cases
 will be lower because dextool hasn't gathered complete information. But this is
 usually not a problem and far offset by the significant reduction in execution
 time that this option can achieve.
