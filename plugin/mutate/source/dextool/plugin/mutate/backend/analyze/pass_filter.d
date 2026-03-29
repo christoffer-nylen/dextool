@@ -122,6 +122,8 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
     static immutable ubyte[2] ctorCurly = ['{', '}'];
     static immutable ubyte zero = '0';
     static immutable ubyte one = '1';
+    static immutable ubyte[2] zeroUnsigned = ['0', 'u'];
+    static immutable ubyte[2] oneUnsigned = ['1', 'u'];
     static immutable ubyte[5] false_ = ['f', 'a', 'l', 's', 'e'];
     static immutable ubyte[4] true_ = ['t', 'r', 'u', 'e'];
 
@@ -135,6 +137,13 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
     // replacing '0' with 'false' and '1' with 'true' is equivalent
     if (file.content[o.begin] == zero && false_ == mutant
             || file.content[o.begin] == one && true_ == mutant) {
+        return true;
+    }
+
+    // replacing '0u' with '0' and '1u' with '1' is equivalent
+    if (o.end - o.begin == 2 && (file.content[o.begin .. o.end] == zeroUnsigned[]
+                && mutant == [zero]
+            || file.content[o.begin .. o.end] == oneUnsigned[] && mutant == [one])) {
         return true;
     }
 
