@@ -54,7 +54,7 @@ ExitStatusType runPlugin(string[] args) {
         return ExitStatusType.Errors;
     }
 
-    writeln("Run the plugin -d to see the AST");
+    writeln("Run the plugin to print decisions found in the input file");
 
     import dextool.utility : prependDefaultFlags, PreferLang;
 
@@ -71,6 +71,7 @@ ExitStatusType runPlugin(string[] args) {
     auto exit_status = analyzeFile(AbsolutePath(Path(pargs.file)), cflags, visitor, ctx);
 
     if (exit_status == ExitStatusType.Ok) {
+        visitor.printDecisions;
         writeln(visitor.generatedCode.render);
     }
 
@@ -144,6 +145,7 @@ override void visit(const WhileStmt) {...}
 */
 final class TUVisitor : Visitor {
     import libclang_ast.ast;
+    import clang.Cursor : Cursor;
     import cpptooling.data.symbol : Container;
     import libclang_ast.cursor_logger : logNode, mixinNodeLog;
     import dsrcgen.cpp;
@@ -155,6 +157,39 @@ final class TUVisitor : Visitor {
     CppHModule generatedCode;
     private CppModule generatedFunctions;
     private Container container;
+    private string[] decisions;
+    private bool[string] decisionDedup;
+
+    private void collectDecision(string kind, scope const Cursor c) {
+        import std.algorithm : map;
+        import std.array : array;
+        import std.format : format;
+        import std.string : join;
+
+        const tokens = c.tokens.map!(a => a.spelling).array;
+        const expr = tokens.length ? tokens.join(" ") : c.spelling;
+        const loc = c.location;
+
+        const entry = format("%s at %s:%s:%s -> %s", kind, loc.file, loc.line,
+                loc.column, expr);
+        if (entry !in decisionDedup) {
+            decisions ~= entry;
+            decisionDedup[entry] = true;
+        }
+    }
+
+    void printDecisions() {
+        import std.stdio : writeln;
+
+        writeln("Decisions:");
+        if (decisions.length == 0) {
+            writeln("  none found");
+        } else {
+            foreach (d; decisions) {
+                writeln("  ", d);
+            }
+        }
+    }
 
     this() {
         this.generatedCode = CppHModule("a_ifdef_guard");
@@ -216,6 +251,25 @@ final class TUVisitor : Visitor {
         v.accept(this);
     }
 
+    override void visit(scope const BinaryOperator v) {
+        mixin(mixinNodeLog!());
+        import std.algorithm : canFind, map;
+        import std.array : array;
+
+        const tokens = v.cursor.tokens.map!(a => a.spelling).array;
+        if (tokens.canFind("&&") || tokens.canFind("||")) {
+            collectDecision("logical expression", v.cursor);
+        }
+
+        v.accept(this);
+    }
+
+    override void visit(scope const ConditionalOperator v) {
+        mixin(mixinNodeLog!());
+        collectDecision("ternary decision", v.cursor);
+        v.accept(this);
+    }
+
     override void visit(scope const Preprocessor v) {
         mixin(mixinNodeLog!());
         v.accept(this);
@@ -228,6 +282,36 @@ final class TUVisitor : Visitor {
 
     override void visit(scope const Statement v) {
         mixin(mixinNodeLog!());
+        v.accept(this);
+    }
+
+    override void visit(scope const IfStmt v) {
+        mixin(mixinNodeLog!());
+        collectDecision("if decision", v.cursor);
+        v.accept(this);
+    }
+
+    override void visit(scope const WhileStmt v) {
+        mixin(mixinNodeLog!());
+        collectDecision("while decision", v.cursor);
+        v.accept(this);
+    }
+
+    override void visit(scope const DoStmt v) {
+        mixin(mixinNodeLog!());
+        collectDecision("do-while decision", v.cursor);
+        v.accept(this);
+    }
+
+    override void visit(scope const ForStmt v) {
+        mixin(mixinNodeLog!());
+        collectDecision("for decision", v.cursor);
+        v.accept(this);
+    }
+
+    override void visit(scope const SwitchStmt v) {
+        mixin(mixinNodeLog!());
+        collectDecision("switch decision", v.cursor);
         v.accept(this);
     }
 }
