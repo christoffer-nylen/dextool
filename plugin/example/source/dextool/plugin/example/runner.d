@@ -160,7 +160,15 @@ final class TUVisitor : Visitor {
     private string[] decisions;
     private bool[string] decisionDedup;
 
-    private void collectDecision(string kind, scope const Cursor c) {
+    private bool hasLogicalOperator(scope const Cursor c) @trusted {
+        import std.algorithm : canFind, map;
+        import std.array : array;
+
+        const tokens = c.tokens.map!(a => a.spelling).array;
+        return tokens.canFind("&&") || tokens.canFind("||");
+    }
+
+    private void collectDecision(string kind, scope const Cursor c) @trusted {
         import std.algorithm : map;
         import std.array : array;
         import std.format : format;
@@ -253,11 +261,7 @@ final class TUVisitor : Visitor {
 
     override void visit(scope const BinaryOperator v) {
         mixin(mixinNodeLog!());
-        import std.algorithm : canFind, map;
-        import std.array : array;
-
-        const tokens = v.cursor.tokens.map!(a => a.spelling).array;
-        if (tokens.canFind("&&") || tokens.canFind("||")) {
+        if (hasLogicalOperator(v.cursor)) {
             collectDecision("logical expression", v.cursor);
         }
 
