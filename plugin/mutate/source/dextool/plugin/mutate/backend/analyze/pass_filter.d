@@ -14,7 +14,8 @@ module dextool.plugin.mutate.backend.analyze.pass_filter;
 
 import logger = std.experimental.logger;
 import std.algorithm : among, map, filter, cache;
-import std.ascii : toLower;
+import std.algorithm.searching : endsWith;
+import std.ascii : toLower, isDigit, isHexDigit;
 import std.array : appender, empty;
 import std.typecons : Tuple;
 
@@ -139,33 +140,70 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
         return true;
     }
 
-    // replacing 0 integer literal suffixes with plain '0' is equivalent.
-    if (hasUndesiredZeroLiteralSuffixMutation(file.content[o.begin .. o.end], mutant)) {
+    // replacing integer literals with suffixes by plain '0' is undesired.
+    if (hasUndesiredIntegerLiteralSuffixMutationToZero(file.content[o.begin .. o.end], mutant)) {
         return true;
     }
 
     return false;
 }
 
-bool hasUndesiredZeroLiteralSuffixMutation(const(ubyte)[] original, const(ubyte)[] mutant) {
+bool hasUndesiredIntegerLiteralSuffixMutationToZero(const(ubyte)[] original,
+        const(ubyte)[] mutant) {
     static immutable string[] integerLiteralSuffixes = [
-        "u", "l", "ll", "ul", "lu", "ull", "llu", "z"
+        "ull", "llu", "ul", "lu", "ll", "u", "l", "z"
     ];
 
-    if (original.length < 2 || original[0] != '0' || mutant != ['0']) {
+    if (original.length < 2 || mutant != ['0']) {
         return false;
     }
 
     auto lowerSuffix = appender!string();
-    foreach (c; original[1 .. $]) {
+    foreach (c; original) {
         lowerSuffix.put(cast(char) toLower(cast(char) c));
     }
 
     foreach (suffix; integerLiteralSuffixes) {
-        if (lowerSuffix.data == suffix) {
+        if (!lowerSuffix.data.endsWith(suffix))
+            continue;
+
+        const literalPart = lowerSuffix.data[0 .. $ - suffix.length];
+        if (isSupportedIntegerLiteral(literalPart)) {
             return true;
         }
     }
 
     return false;
+}
+
+bool isSupportedIntegerLiteral(const(char)[] literal) {
+    if (literal.empty) {
+        return false;
+    }
+
+    bool hasDigit;
+    if (literal.length >= 2 && literal[0] == '0' && literal[1] == 'x') {
+        foreach (c; literal[2 .. $]) {
+            if (c == '\'') {
+                continue;
+            }
+            if (!isHexDigit(c)) {
+                return false;
+            }
+            hasDigit = true;
+        }
+        return hasDigit;
+    }
+
+    foreach (c; literal) {
+        if (c == '\'') {
+            continue;
+        }
+        if (!isDigit(c)) {
+            return false;
+        }
+        hasDigit = true;
+    }
+
+    return hasDigit;
 }
