@@ -202,60 +202,22 @@ bool isZeroIntegerLiteral(const(ubyte)[] literal) {
         return false;
     }
 
+    if (literal.length >= 2 && literal[0] == '0' && literal[1].among('x', 'X', 'b', 'B')) {
+        return isAllZeroDigits(literal[2 .. $]);
+    }
+
+    return isAllZeroDigits(literal);
+}
+
+bool isAllZeroDigits(const(ubyte)[] literalPart) {
     bool hasDigit = false;
-    bool allDigitsAreZero = true;
-    if (literal.length >= 2 && literal[0] == '0' && literal[1].among('x', 'X')) {
-        foreach (c; literal[2 .. $]) {
-            if (c == '\'') {
-                continue;
-            }
-            if (!isHexDigit(c)) {
-                return false;
-            }
-            if (c != '0') {
-                allDigitsAreZero = false;
-            }
-            hasDigit = true;
-        }
-        return hasDigit && allDigitsAreZero;
-    }
-
-    if (literal.length >= 2 && literal[0] == '0' && literal[1].among('b', 'B')) {
-        foreach (c; literal[2 .. $]) {
-            if (c == '\'') {
-                continue;
-            }
-            if (!c.among('0', '1')) {
-                return false;
-            }
-            if (c != '0') {
-                allDigitsAreZero = false;
-            }
-            hasDigit = true;
-        }
-        return hasDigit && allDigitsAreZero;
-    }
-
-    foreach (c; literal) {
-        if (c == '\'') {
+    foreach (c; literalPart) {
+        if (c == '\'')
             continue;
-        }
-        if (!isDigit(c)) {
+        if (c != '0')
             return false;
-        }
-        if (c != '0') {
-            allDigitsAreZero = false;
-        }
         hasDigit = true;
     }
 
-    return hasDigit && allDigitsAreZero;
-}
-
-bool isDigit(ubyte c) @safe pure nothrow @nogc {
-    return c >= '0' && c <= '9';
-}
-
-bool isHexDigit(ubyte c) @safe pure nothrow @nogc {
-    return isDigit(c) || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
+    return hasDigit;
 }
