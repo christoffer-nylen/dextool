@@ -14,6 +14,7 @@ module dextool.plugin.mutate.backend.analyze.pass_filter;
 
 import logger = std.experimental.logger;
 import std.algorithm : among, map, filter, cache;
+import std.ascii : toLower;
 import std.array : appender, empty;
 import std.typecons : Tuple;
 
@@ -122,8 +123,6 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
     static immutable ubyte[2] ctorCurly = ['{', '}'];
     static immutable ubyte zero = '0';
     static immutable ubyte one = '1';
-    static immutable ubyte[2] zeroUnsigned = ['0', 'u'];
-    static immutable ubyte[2] oneUnsigned = ['1', 'u'];
     static immutable ubyte[5] false_ = ['f', 'a', 'l', 's', 'e'];
     static immutable ubyte[4] true_ = ['t', 'r', 'u', 'e'];
 
@@ -140,12 +139,27 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
         return true;
     }
 
-    // replacing '0u' with '0' and '1u' with '1' is equivalent
-    if (o.end - o.begin == 2 && (file.content[o.begin .. o.end] == zeroUnsigned[]
-                && mutant == [zero]
-            || file.content[o.begin .. o.end] == oneUnsigned[] && mutant == [one])) {
+    // replacing 0 integer literal suffixes with plain '0' is equivalent.
+    if (hasUndesiredZeroLiteralSuffixMutation(file.content[o.begin .. o.end], mutant)) {
         return true;
     }
 
     return false;
+}
+
+bool hasUndesiredZeroLiteralSuffixMutation(const(ubyte)[] original, const(ubyte)[] mutant) {
+    static immutable string[] integerLiteralSuffixes = [
+        "u", "l", "ll", "ul", "lu", "ull", "llu", "z"
+    ];
+
+    if (original.length < 2 || original[0] != '0' || mutant != ['0']) {
+        return false;
+    }
+
+    auto lowerSuffix = appender!string();
+    foreach (c; original[1 .. $]) {
+        lowerSuffix.put(cast(char) toLower(cast(char) c));
+    }
+
+    return lowerSuffix.data.among(integerLiteralSuffixes);
 }
