@@ -155,6 +155,8 @@ bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
         ['L', 'U'],
         ['u', 'l', 'l'], ['u', 'L', 'L'], ['U', 'l', 'l'], ['U', 'L', 'L'], ['l', 'l', 'u'],
         ['l', 'l', 'U'], ['L', 'L', 'u'], ['L', 'L', 'U'],
+        ['u', 'z'], ['u', 'Z'], ['U', 'z'], ['U', 'Z'], ['z', 'u'], ['z', 'U'], ['Z', 'u'],
+        ['Z', 'U'],
         ['z'], ['Z']
     ];
 
