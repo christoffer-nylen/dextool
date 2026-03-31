@@ -220,6 +220,22 @@ bool isZeroIntegerLiteral(const(ubyte)[] literal) {
         return hasDigit && allDigitsAreZero;
     }
 
+    if (literal.length >= 2 && literal[0] == '0' && literal[1].among('b', 'B')) {
+        foreach (c; literal[2 .. $]) {
+            if (c == '\'') {
+                continue;
+            }
+            if (!c.among('0', '1')) {
+                return false;
+            }
+            if (c != '0') {
+                allDigitsAreZero = false;
+            }
+            hasDigit = true;
+        }
+        return hasDigit && allDigitsAreZero;
+    }
+
     foreach (c; literal) {
         if (c == '\'') {
             continue;
