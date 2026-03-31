@@ -14,8 +14,6 @@ module dextool.plugin.mutate.backend.analyze.pass_filter;
 
 import logger = std.experimental.logger;
 import std.algorithm : among, map, filter, cache;
-import std.algorithm.searching : endsWith;
-import std.ascii : toLower, isDigit, isHexDigit;
 import std.array : appender, empty;
 import std.typecons : Tuple;
 
@@ -140,55 +138,68 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
         return true;
     }
 
-    // replacing zero-valued integer literals with suffixes by plain '0' is undesired.
-    if (hasUndesiredIntegerLiteralSuffixMutationToZero(file.content[o.begin .. o.end], mutant)) {
+    // replacing zero-valued integer literals with plain '0' is equivalent.
+    if (isEquivalentZeroMutant(file.content[o.begin .. o.end], mutant)) {
         return true;
     }
 
     return false;
 }
 
-bool hasUndesiredIntegerLiteralSuffixMutationToZero(const(ubyte)[] original,
-        const(ubyte)[] mutant) {
-    static immutable string[] integerLiteralSuffixes = [
-        "ull", "llu", "ul", "lu", "ll", "u", "l", "z"
+bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
+    static immutable ubyte[][] integerLiteralSuffixes = [
+        ['u'], ['l'], ['l', 'l'], ['u', 'l'], ['l', 'u'], ['u', 'l', 'l'], ['l', 'l', 'u'], ['z']
     ];
 
     if (original.length < 2 || mutant != ['0']) {
         return false;
     }
 
-    auto lowerSuffix = appender!string();
-    foreach (c; original) {
-        lowerSuffix.put(cast(char) toLower(cast(char) c));
-    }
-
     foreach (suffix; integerLiteralSuffixes) {
-        if (!lowerSuffix.data.endsWith(suffix))
+        if (!endsWithAsciiIgnoreCase(original, suffix))
             continue;
 
-        const literalPart = lowerSuffix.data[0 .. $ - suffix.length];
+        const literalPart = original[0 .. $ - suffix.length];
         if (isZeroIntegerLiteral(literalPart)) {
             return true;
         }
     }
 
     // Also filter unsuffixed zero literals such as 0x0 -> 0 and 00 -> 0.
-    if (isZeroIntegerLiteral(lowerSuffix.data)) {
+    if (isZeroIntegerLiteral(original)) {
         return true;
     }
 
     return false;
 }
 
-bool isZeroIntegerLiteral(const(char)[] literal) {
+bool endsWithAsciiIgnoreCase(const(ubyte)[] value, const(ubyte)[] suffix) {
+    if (suffix.length > value.length) {
+        return false;
+    }
+
+    const start = value.length - suffix.length;
+    foreach (i, s; suffix) {
+        if (toLowerAscii(value[start + i]) != toLowerAscii(s)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+ubyte toLowerAscii(ubyte c) @safe pure nothrow @nogc {
+    return c >= 'A' && c <= 'Z' ? cast(ubyte) (c + 32) : c;
+}
+
+bool isZeroIntegerLiteral(const(ubyte)[] literal) {
     if (literal.empty) {
         return false;
     }
 
     bool hasDigit;
     bool allDigitsAreZero = true;
-    if (literal.length >= 2 && literal[0] == '0' && literal[1] == 'x') {
+    if (literal.length >= 2 && literal[0] == '0' && literal[1].among('x', 'X')) {
         foreach (c; literal[2 .. $]) {
             if (c == '\'') {
                 continue;
@@ -218,4 +229,12 @@ bool isZeroIntegerLiteral(const(char)[] literal) {
     }
 
     return hasDigit && allDigitsAreZero;
+}
+
+bool isDigit(ubyte c) @safe pure nothrow @nogc {
+    return c >= '0' && c <= '9';
+}
+
+bool isHexDigit(ubyte c) @safe pure nothrow @nogc {
+    return isDigit(c) || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
 }
