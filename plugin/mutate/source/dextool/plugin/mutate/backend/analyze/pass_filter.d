@@ -148,7 +148,14 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
 
 bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
     static immutable ubyte[][] integerLiteralSuffixes = [
-        ['u'], ['l'], ['l', 'l'], ['u', 'l'], ['l', 'u'], ['u', 'l', 'l'], ['l', 'l', 'u'], ['z']
+        ['u'], ['U'],
+        ['l'], ['L'],
+        ['l', 'l'], ['L', 'L'],
+        ['u', 'l'], ['u', 'L'], ['U', 'l'], ['U', 'L'], ['l', 'u'], ['l', 'U'], ['L', 'u'],
+        ['L', 'U'],
+        ['u', 'l', 'l'], ['u', 'L', 'L'], ['U', 'l', 'l'], ['U', 'L', 'L'], ['l', 'l', 'u'],
+        ['l', 'l', 'U'], ['L', 'L', 'u'], ['L', 'L', 'U'],
+        ['z'], ['Z']
     ];
 
     if (original.length < 2 || mutant != ['0']) {
@@ -156,7 +163,7 @@ bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
     }
 
     foreach (suffix; integerLiteralSuffixes) {
-        if (!endsWithAsciiIgnoreCase(original, suffix))
+        if (!endsWithBytes(original, suffix))
             continue;
 
         const literalPart = original[0 .. $ - suffix.length];
@@ -173,23 +180,19 @@ bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
     return false;
 }
 
-bool endsWithAsciiIgnoreCase(const(ubyte)[] value, const(ubyte)[] suffix) {
+bool endsWithBytes(const(ubyte)[] value, const(ubyte)[] suffix) {
     if (suffix.length > value.length) {
         return false;
     }
 
     const start = value.length - suffix.length;
     foreach (i, s; suffix) {
-        if (toLowerAscii(value[start + i]) != toLowerAscii(s)) {
+        if (value[start + i] != s) {
             return false;
         }
     }
 
     return true;
-}
-
-ubyte toLowerAscii(ubyte c) @safe pure nothrow @nogc {
-    return c >= 'A' && c <= 'Z' ? cast(ubyte) (c + 32) : c;
 }
 
 bool isZeroIntegerLiteral(const(ubyte)[] literal) {
