@@ -210,14 +210,12 @@ bool isZeroIntegerLiteral(const(ubyte)[] literal) {
 }
 
 bool isAllZeroDigits(const(ubyte)[] literalPart) {
-    bool hasDigit = false;
     foreach (c; literalPart) {
         if (c == '\'')
             continue;
         if (c != '0')
             return false;
-        hasDigit = true;
     }
 
-    return hasDigit;
+    return true;
 }
