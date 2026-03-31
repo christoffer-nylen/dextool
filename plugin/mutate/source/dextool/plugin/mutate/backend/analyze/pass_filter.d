@@ -165,7 +165,7 @@ bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
     }
 
     foreach (suffix; integerLiteralSuffixes) {
-        if (!endsWithBytes(original, suffix))
+        if (!endsWith(original, suffix))
             continue;
 
         const literalPart = original[0 .. $ - suffix.length];
@@ -182,7 +182,7 @@ bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
     return false;
 }
 
-bool endsWithBytes(const(ubyte)[] value, const(ubyte)[] suffix) {
+bool endsWith(const(ubyte)[] value, const(ubyte)[] suffix) {
     if (suffix.length > value.length) {
         return false;
     }
