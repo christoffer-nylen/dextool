@@ -161,5 +161,11 @@ bool hasUndesiredZeroLiteralSuffixMutation(const(ubyte)[] original, const(ubyte)
         lowerSuffix.put(cast(char) toLower(cast(char) c));
     }
 
-    return lowerSuffix.data.among(integerLiteralSuffixes);
+    foreach (suffix; integerLiteralSuffixes) {
+        if (lowerSuffix.data == suffix) {
+            return true;
+        }
+    }
+
+    return false;
 }
