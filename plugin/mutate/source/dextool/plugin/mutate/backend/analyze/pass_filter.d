@@ -173,6 +173,11 @@ bool hasUndesiredIntegerLiteralSuffixMutationToZero(const(ubyte)[] original,
         }
     }
 
+    // Also filter unsuffixed zero literals such as 0x0 -> 0 and 00 -> 0.
+    if (isZeroIntegerLiteral(lowerSuffix.data)) {
+        return true;
+    }
+
     return false;
 }
 
