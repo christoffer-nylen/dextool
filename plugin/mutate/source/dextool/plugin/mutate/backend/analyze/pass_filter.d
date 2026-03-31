@@ -140,7 +140,7 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
         return true;
     }
 
-    // replacing integer literals with suffixes by plain '0' is undesired.
+    // replacing zero-valued integer literals with suffixes by plain '0' is undesired.
     if (hasUndesiredIntegerLiteralSuffixMutationToZero(file.content[o.begin .. o.end], mutant)) {
         return true;
     }
@@ -168,7 +168,7 @@ bool hasUndesiredIntegerLiteralSuffixMutationToZero(const(ubyte)[] original,
             continue;
 
         const literalPart = lowerSuffix.data[0 .. $ - suffix.length];
-        if (isSupportedIntegerLiteral(literalPart)) {
+        if (isZeroIntegerLiteral(literalPart)) {
             return true;
         }
     }
@@ -176,12 +176,13 @@ bool hasUndesiredIntegerLiteralSuffixMutationToZero(const(ubyte)[] original,
     return false;
 }
 
-bool isSupportedIntegerLiteral(const(char)[] literal) {
+bool isZeroIntegerLiteral(const(char)[] literal) {
     if (literal.empty) {
         return false;
     }
 
     bool hasDigit;
+    bool allDigitsAreZero = true;
     if (literal.length >= 2 && literal[0] == '0' && literal[1] == 'x') {
         foreach (c; literal[2 .. $]) {
             if (c == '\'') {
@@ -190,9 +191,12 @@ bool isSupportedIntegerLiteral(const(char)[] literal) {
             if (!isHexDigit(c)) {
                 return false;
             }
+            if (c != '0') {
+                allDigitsAreZero = false;
+            }
             hasDigit = true;
         }
-        return hasDigit;
+        return hasDigit && allDigitsAreZero;
     }
 
     foreach (c; literal) {
@@ -202,8 +206,11 @@ bool isSupportedIntegerLiteral(const(char)[] literal) {
         if (!isDigit(c)) {
             return false;
         }
+        if (c != '0') {
+            allDigitsAreZero = false;
+        }
         hasDigit = true;
     }
 
-    return hasDigit;
+    return hasDigit && allDigitsAreZero;
 }
