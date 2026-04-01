@@ -10,14 +10,14 @@ Join the community at [discord](https://discord.gg/Gc27DyQ5yx).
 
  * See [installation](https://github.com/joakim-brannstrom/dextool/blob/master/README.md#Installation)
    for how to build and install dextool.
+ * See [quick start](README_tutorial.md) for how to apply mutation
+   testing on a project.
  * See [config options](README_config.md) for detailed explanations of the
    configuration options.
  * See [continues integration](README_ci.md) for how to integrate dextool mutate.
  * See [parallel](README_parallel.md) for how to run multiple workers in parallel.
  * See [embedded systems](README_embedded.md) for how to use the tool in an embedded systems environment.
  * See [mutation operators](doc/design/mutations.md) for in depth details of the generated mutants.
- * See [apply mutation testing](README_tutorial.md) for how to apply mutation
-   testing on a project.
  * See [fmt tutorial](README_tutorial_fmt.md) for a practical example of
    running mutation testing.
  * See [roadmap](README_roadmap.md) for where dextool mutate is headed in the
