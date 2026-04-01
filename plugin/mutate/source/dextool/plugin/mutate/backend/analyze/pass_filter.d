@@ -138,7 +138,7 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
         return true;
     }
 
-    // replacing zero-valued integer literals with plain '0' is equivalent.
+    // replacing zero-valued integer literals with plain '0' is equivalent
     if (isEquivalentZeroMutant(file.content[o.begin .. o.end], mutant)) {
         return true;
     }
@@ -147,12 +147,14 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
 }
 
 bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
+    static immutable ubyte[8] integerLiteralSuffixChars = ['u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z'];
+
     if (original.length < 2 || mutant != ['0']) {
         return false;
     }
 
     size_t literalEnd = original.length;
-    while (literalEnd > 0 && isIntegerLiteralSuffixChar(original[literalEnd - 1])) {
+    while (literalEnd > 0 && original[literalEnd - 1].among(integerLiteralSuffixChars[])) {
         --literalEnd;
     }
 
@@ -184,9 +186,4 @@ bool isAllZeroDigits(const(ubyte)[] literalPart) {
     }
 
     return true;
-}
-
-bool isIntegerLiteralSuffixChar(ubyte c) @safe pure nothrow @nogc {
-    return c == 'u' || c == 'U' || c == 'l' || c == 'L' || c == 'v' || c == 'V' || c == 'z'
-            || c == 'Z';
 }
