@@ -187,5 +187,6 @@ bool isAllZeroDigits(const(ubyte)[] literalPart) {
 }
 
 bool isIntegerLiteralSuffixChar(ubyte c) @safe pure nothrow @nogc {
-    return c.among('u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z');
+    return c == 'u' || c == 'U' || c == 'l' || c == 'L' || c == 'v' || c == 'V' || c == 'z'
+            || c == 'Z';
 }
