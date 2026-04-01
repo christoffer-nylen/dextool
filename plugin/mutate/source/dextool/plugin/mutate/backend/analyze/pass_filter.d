@@ -147,54 +147,20 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
 }
 
 bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
-    static immutable ubyte[][] integerLiteralSuffixes = [
-        ['u'], ['U'],
-        ['l'], ['L'],
-        ['l', 'l'], ['L', 'L'],
-        ['u', 'l'], ['u', 'L'], ['U', 'l'], ['U', 'L'], ['l', 'u'], ['l', 'U'], ['L', 'u'],
-        ['L', 'U'],
-        ['u', 'l', 'l'], ['u', 'L', 'L'], ['U', 'l', 'l'], ['U', 'L', 'L'], ['l', 'l', 'u'],
-        ['l', 'l', 'U'], ['L', 'L', 'u'], ['L', 'L', 'U'],
-        ['u', 'z'], ['u', 'Z'], ['U', 'z'], ['U', 'Z'], ['z', 'u'], ['z', 'U'], ['Z', 'u'],
-        ['Z', 'U'],
-        ['z'], ['Z']
-    ];
-
     if (original.length < 2 || mutant != ['0']) {
         return false;
     }
 
-    foreach (suffix; integerLiteralSuffixes) {
-        if (!endsWith(original, suffix))
-            continue;
-
-        const literalPart = original[0 .. $ - suffix.length];
-        if (isZeroIntegerLiteral(literalPart)) {
-            return true;
-        }
+    size_t literalEnd = original.length;
+    while (literalEnd > 0 && isIntegerLiteralSuffixChar(original[literalEnd - 1])) {
+        --literalEnd;
     }
 
-    // Also filter unsuffixed zero literals such as 0x0 -> 0 and 00 -> 0.
-    if (isZeroIntegerLiteral(original)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool endsWith(const(ubyte)[] value, const(ubyte)[] suffix) {
-    if (suffix.length > value.length) {
+    if (literalEnd == 0) {
         return false;
     }
 
-    const start = value.length - suffix.length;
-    foreach (i, s; suffix) {
-        if (value[start + i] != s) {
-            return false;
-        }
-    }
-
-    return true;
+    return isZeroIntegerLiteral(original[0 .. literalEnd]);
 }
 
 bool isZeroIntegerLiteral(const(ubyte)[] literal) {
@@ -218,4 +184,8 @@ bool isAllZeroDigits(const(ubyte)[] literalPart) {
     }
 
     return true;
+}
+
+bool isIntegerLiteralSuffixChar(ubyte c) @safe pure nothrow @nogc {
+    return c.among('u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z');
 }
