@@ -147,6 +147,8 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
 }
 
 bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
+    import std.algorithm.searching : canFind;
+
     static immutable ubyte[8] integerLiteralSuffixChars = ['u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z'];
 
     if (original.length < 2 || mutant != ['0']) {
@@ -154,7 +156,7 @@ bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
     }
 
     size_t literalEnd = original.length;
-    while (literalEnd > 0 && original[literalEnd - 1].among(integerLiteralSuffixChars[])) {
+    while (literalEnd > 0 && integerLiteralSuffixChars[].canFind(original[literalEnd - 1])) {
         --literalEnd;
     }
 
