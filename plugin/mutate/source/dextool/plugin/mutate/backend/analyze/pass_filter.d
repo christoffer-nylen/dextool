@@ -147,14 +147,13 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
 }
 
 bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
-    static immutable ubyte[8] integerLiteralSuffixChars = ['u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z'];
-
     if (original.length < 2 || mutant != ['0']) {
         return false;
     }
 
     size_t literalEnd = original.length;
-    while (literalEnd > 0 && original[literalEnd - 1].among(integerLiteralSuffixChars[])) {
+    while (literalEnd > 0
+            && original[literalEnd - 1].among('u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z')) {
         --literalEnd;
     }
 
