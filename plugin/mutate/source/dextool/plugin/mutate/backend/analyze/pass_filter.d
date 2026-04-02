@@ -15,7 +15,7 @@ module dextool.plugin.mutate.backend.analyze.pass_filter;
 import logger = std.experimental.logger;
 import std.algorithm : among, map, filter, cache, all;
 import std.algorithm.mutation : stripRight;
-import std.array : appender, empty;
+import std.array : appender, empty, array;
 import std.typecons : Tuple;
 
 import blob_model : Blob;
@@ -177,6 +177,6 @@ bool isZeroIntegerLiteral(const(ubyte)[] literal) {
 }
 
 bool isAllZeroDigits(const(ubyte)[] literalPart) {
-    const digits = literalPart.filter!(c => c != '\'');
+    const digits = literalPart.filter!(c => c != '\'').array;
     return !digits.empty && digits.all!(c => c == '0');
 }
