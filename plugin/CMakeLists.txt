@@ -4,5 +4,6 @@
 add_subdirectory(ctestdouble)
 add_subdirectory(cpptestdouble)
 add_subdirectory(example)
+add_subdirectory(mcdc)
 # add_subdirectory(uml)
 add_subdirectory(mutate)
