@@ -13,7 +13,8 @@ equivalent or undesired mutants.
 module dextool.plugin.mutate.backend.analyze.pass_filter;
 
 import logger = std.experimental.logger;
-import std.algorithm : among, map, filter, cache;
+import std.algorithm : among, map, filter, cache, all;
+import std.algorithm.mutation : stripRight;
 import std.array : appender, empty;
 import std.typecons : Tuple;
 
@@ -147,21 +148,20 @@ bool isUndesiredCppPattern(Blob file, Offset o, const(ubyte)[] mutant) {
 }
 
 bool isEquivalentZeroMutant(const(ubyte)[] original, const(ubyte)[] mutant) {
+    import std.algorithm.searching : canFind;
+
+    static immutable ubyte[8] suffixChars = ['u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z'];
+
     if (original.length < 2 || mutant != ['0']) {
         return false;
     }
 
-    size_t literalEnd = original.length;
-    while (literalEnd > 0
-            && original[literalEnd - 1].among('u', 'U', 'l', 'L', 'v', 'V', 'z', 'Z')) {
-        --literalEnd;
-    }
-
-    if (literalEnd == 0) {
+    const literal = original.stripRight!(c => suffixChars[].canFind(c));
+    if (literal.empty) {
         return false;
     }
 
-    return isZeroIntegerLiteral(original[0 .. literalEnd]);
+    return isZeroIntegerLiteral(literal);
 }
 
 bool isZeroIntegerLiteral(const(ubyte)[] literal) {
@@ -177,12 +177,6 @@ bool isZeroIntegerLiteral(const(ubyte)[] literal) {
 }
 
 bool isAllZeroDigits(const(ubyte)[] literalPart) {
-    foreach (c; literalPart) {
-        if (c == '\'')
-            continue;
-        if (c != '0')
-            return false;
-    }
-
-    return true;
+    const digits = literalPart.filter!(c => c != '\'');
+    return !digits.empty && digits.all!(c => c == '0');
 }
