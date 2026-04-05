@@ -1,21 +1,25 @@
 # Configuration
 
-This document is a reference for `dextool mutate` commands, flags, and
-`.dextool_mutate.toml` configuration options.
+This document is a reference for the current `dextool mutate` commands, flags,
+and `.dextool_mutate.toml` configuration keys.
 
-It provides detailed descriptions of all available settings and is intended for
-users who need fine-grained control over mutation testing behavior.
+It is intended to stay aligned with:
+
+- `dextool mutate <command> --help`
+- `dextool mutate admin --dump-config`
+- the current argument/config parser in `source/dextool/plugin/mutate/frontend/argparser.d`
 
 For a step-by-step introduction, see [the quick start guide](README_tutorial.md).
 
 - [Command Line Options](#command-line-options)
-  - [General](#general)
+  - [Shared flags](#shared-flags)
   - [Admin](#admin)
   - [Analyze](#cmd-analyze)
   - [Generate](#generate)
   - [Report](#cmd-report)
   - [Test](#test)
 - [Configuration File](#configuration-file)
+  - [General notes](#config-notes)
   - [\[workarea\]](#workarea)
   - [\[generic\]](#generic)
   - [\[analyze\]](#config-analyze)
@@ -23,358 +27,211 @@ For a step-by-step introduction, see [the quick start guide](README_tutorial.md)
   - [\[coverage\]](#coverage)
   - [\[database\]](#database)
   - [\[compiler\]](#compiler)
-  - [\[compile\_commands\]](#compile_commands)
-  - [\[mutant\_test\]](#mutant_test)
+  - [\[compile_commands\]](#compile_commands)
+  - [\[mutant_test\]](#mutant_test)
   - [\[report\]](#config-report)
+  - [\[test_group\]](#test_group)
+  - [\[test\]](#config-test)
+  - [Deprecated compatibility keys](#deprecated-compatibility-keys)
 - [Resources](#resources)
 
 # Command Line Options
 
-The following sections are divided into the current existing commands for
-*Mutate*.
+The sections below describe the flags exposed by the mutate plugin today.
+Unless noted otherwise, paths and glob patterns are interpreted relative to
+`--out` / `[workarea].root`.
 
-The flags for the different commands will be listed in the following format:
+## Shared flags
 
-```sh
---flag-long-version [-flag-short-version]
-```
-Description
+- `-c`, `--config`: Load a user configuration file. The default is
+  `.dextool_mutate.toml`.
 
-```sh
-input_example
-```
+  Dextool loads system configuration first and then overlays the user
+  configuration from `--config`, so the user file can override any system
+  setting.
 
-**Note:** Several of the commands listed below can be set in the
-configuration-file as well. It is recommended to generate an *.toml*-file and
-set the corresponding fields in that file instead of having long chains of
-commands to execute in the terminal (it is usually more simple that way,
-reduces clutter in the terminal and increase usability for coming test
-sessions). The information listed below can also be viewed by executing
-*dextool mutate --help* in a terminal window, but with a shorter and less
-detailed explanation.
+  System configuration is searched for in this order:
 
-## General
+  - `$XDG_CONFIG_HOME/dextool/dextool_mutate.toml`
+  - `dirname(<dextool executable>)/config/dextool_mutate.toml`
+  - `dirname(dirname(<dextool executable>))/config/dextool_mutate.toml`
+  - each entry in `$XDG_CONFIG_DIRS` as
+    `<dir>/dextool/config/dextool_mutate.toml`
 
-This options are general and can be used for all the commands in Mutate.
+- `--db`: Path to the sqlite3 database to use. The default is
+  `dextool_mutate.sqlite3`.
 
-```sh
---config [-c]
-```
-Load configuration (default: .dextool_mutate.toml). Can be used if another
-project contains a configuration-file which the users wants to reuse.
+- `--out`: Root path used for mutation and reporting. The default is `.`.
 
-Dextool always first load the system config and then the user config (-c). The
-user configuration can override anything in the system config.
+- `-h`, `--help`: Print help for the current mutate subcommand.
 
-Dextool look for the system config at:
+- `--include`, `--exclude`: Restrict which files are eligible for mutation.
+  These flags are available on `analyze`, `generate`, `report`, and `test`.
+  Files must match at least one include pattern and none of the exclude
+  patterns. The default is `["*"]` for include and an empty exclude list.
 
-- `$XDG_CONFIG_HOME/dextool/dextool_mutate.toml`
-- `dirname(<dextool executable>)/config/dextool_mutate.toml`
-- `dirname(<dextool executable>)/../config/dextool_mutate.toml`
-- `$XDG_CONFIG_DIRS/config/dextool/dextool_mutate.toml`
+- `--compile-db`: Override the compilation database to read compile flags from.
+  This flag is available on `analyze` and `report`.
 
-```sh
---db
-```
-Specify which sqlite3 database to use for the mutation testing (default:
-dextool_mutate.sqlite3). This option could be used when several databases
-exists for i.e. different versions of the code, or simply because the user have
-chosen to create several databases for result.
+- `--diff-from-stdin`: Read a unified git diff from stdin and restrict work to
+  the changed files or lines. This flag is available on `analyze`, `report`,
+  and `test`.
 
-```sh
---out
-```
-Path used as the root for mutation/reporting of files (default: .).
+  Example:
 
-```sh
---help [-h]
-```
-Display the help information in terminal window (less detailed). By writing,
-for example, *dextool mutate analyze --help*, the user will display the help
-for the analyze command.
+  ```sh
+  git diff | dextool mutate analyze --diff-from-stdin
+  git diff | dextool mutate test --diff-from-stdin
+  git diff | dextool mutate report --diff-from-stdin
+  ```
 
-```sh
---include
---exclude
-```
-Only files that match at least one of the include glob patterns and none of the
-exclude will be mutated (written to during the test phase). Default is `"*"` for
-include and none for exclude. All patterns are adjusted to be relative to root
-(default: .). This option is mostly used by e.g. header only libraries because
-dextool need to analyze the test case source code to *see* how the library is
-instantiated but the test code should not be mutated. Another use case is when
-the root contains source code that shouldn't be mutated then these options make
-it possible to specify what inside the root should be mutated.
-
-```sh
-# only mutate files under include but exclude test
-dextool mutate analyze --include "include/*" --exclude "test/*"
-```
-
-```sh
---compile-db
-```
-Retrieve compilation parameters from a specific compilation-database. This can
-be used if the projects contains specific compilation-databases for ex.
-compilation targets or environments.
-
-```sh
---diff-from-stdin
-```
-Reads a diff/patch in the git format (Unified Format) from stdin. It will
-always, for all command groups it is available, affect the files and lines that
-are tested/reported.
-
-```sh
-# only analyze and save mutants in the changed files
-git diff|dextool mutate analyze --diff-from-stdin
-# only test mutants on the changed lines
-git diff|dextool mutate test --diff-from-stdin
-# only report mutants on the changed lines
-git diff|dextool mutate report --diff-from-stdin
-```
-
-```sh
---profile
-```
-The operations in dextool are not free especially the more complex reports.
-This option print a table of what the tool internally spent time on.
-
-```sh
-# set logging for all modules
---verbose trace # same as debug
-# set logging for a specific module, comma separated
---verbose-module analyze.pass_schema=trace,analyze=trace
-```
-This option is hidden from normal view. It is used to output specific logging
-for an internal submodule. To see all modules run `--verbose-module` with some
-nonsense and it will print them.
+- `--profile`: Print internal performance/profiling information. This flag is
+  available on `analyze` and `report`.
 
 ## Admin
 
-Admin-mode for the plugin. Is used to execute administrative commands and to
-initialize/setup mutation testing for a project.
+Administrative operations for bootstrapping and maintaining the mutation
+database.
 
+- `--init`: Write a starter `.dextool_mutate.toml` into the current workspace.
 
-```sh
---init
-```
-Create an initial configuration to use in the current workspace. This command
-is used when the mutation testing is setup for a specific project the first
-time.
+- `--dump-config`: Print the resolved TOML configuration that dextool is using.
 
-```sh
---dump-config
-```
-Dump the detailed configuration in the terminal. Could be used to create and
-setup your own configuration-file.
+- `-m`, `--mutant`: Select mutation kinds for admin operations that act on
+  mutation kinds. Accepted values are `all`, `ror`, `rorp`, `lcr`, `aor`,
+  `uoi`, `sdl`, `dcr`, `lcrb`, `aors`, and `cr`.
 
-```sh
---operation
-```
-Administrative operation to perform:
- - *none* : Performs no operation.
- - *resetMutant* : lets the user reset all mutants with the status/state
-   specified with *--status* to the status specified with *--to-status*.
- - *removeMutant* : Remove all mutants of the specified kind (*--mutant*) from
-   the database.
- - *removeTestCase* : Remove all test cases that match the supplied regex.
- - *markMutant*: Mark a mutant with a specific status and provide a rationale.
-   Will both mark the mutant in mutationStatusTable and in a separate table.
- - *removeMarkedMutant* : remove the marking of a mutant.
- - *resetTestCase* : reset the mutants that the test case has killed to unknown (ignore `--to-status`)
- - *compact* : run a sqlite vacuum on the database with the goal of reducing the
-   database size. This is automatically done after operations that normally
-   result in a potentially significant reduction of the database size so most
-   often this option is not needed.
- - *stopTimeoutTest* : changes the states in the database and internal worklists
-   such that the test phase will finish the timeout testing faster. This may be
-   desired if there are many timeout mutants and it takes a long time to
-   execute each of them.
- - *resetMutantSubKind* : same as resetMutant but only operates on the
-   sub-mutation kinds which have a higher precision of which ones are affected.
- - *clearWorklist* : clear the worklist of mutants to test.
+- `--mutant-sub-kind`: Select one or more specific sub-kinds for operations
+  such as `resetMutantSubKind`. The full set of values mirrors the internal
+  `Mutation.Kind` enum and is printed by `dextool mutate admin --help`.
 
-```sh
---test-case-regex
-```
-Regular expression to use when removing (*removeTestCase*) or resetting (*resetTestCase*) test cases.
+- `--operation`: Administrative operation to perform. Accepted values are:
+  `none`, `resetMutant`, `removeMutant`, `removeTestCase`, `markMutant`,
+  `removeMarkedMutant`, `resetTestCase`, `compact`, `stopTimeoutTest`,
+  `resetMutantSubKind`, and `clearWorklist`.
 
-```sh
---status
-```
-Change mutants with this status/state to the value specified by
-*--to-status-flag*. The typical usage of this option is to reset the mutants
-with *alive* status to *unknown* in order to conduct mutation testing again
-after the test suite has been extended.
- - *unknown* : Mutants that is either untested or caused unknown errors when trying to execute compilation script.
- - *killed* : Mutants that were detected by the test suite (one or more tests failed).
- - *alive* : Mutants that were not detected by the test suite (all tests passed).
- - *killedByCompiler* : Invalid mutants generated that caused the compilation
-   of the project to fail.
- - *timeout* : Mutants that timed out during test suite execution.
+- `--test-case-regex`: Regex used by operations that remove or reset test
+  cases.
 
-```sh
---to-status
-```
-Reset mutants to status/state (default: unknown). (see *--status*).
- - *unknown* : Mutants that is either untested or caused unknown errors when trying to execute compilation script.
- - *killed* : Mutants that were detected by the test suite (one or more tests failed).
- - *alive* : Mutants that were not detected by the test suite (all tests passed).
- - *killedByCompiler* : Invalid mutants generated that caused the compilation of the project to fail.
- - *timeout* : Mutants that timed out during test suite execution.
+- `--status`: Filter mutants by their current status. Accepted values are
+  `unknown`, `killed`, `alive`, `killedByCompiler`, `timeout`, `noCoverage`,
+  `equivalent`, `skipped`, and `memOverload`.
 
-```sh
---id
-```
-Specify a specific mutant by Id.
+- `--to-status`: Target status to write when an admin operation resets or marks
+  mutants. It accepts the same values as `--status`.
 
-```sh
---rationale
-```
-Provide a rationale for marking a mutant.
+- `--id`: Mutant id to operate on.
 
-```sh
---mutant-sub-kind
-```
-The mutation operators are internally divided in 40+ sub categories. This
-specify which of them to affect.
+- `--rationale`: Free-form explanation stored when marking a mutant manually.
 
 ## Analyze <a id="cmd-analyze"></a>
 
-Analyze-mode for the plugin. Is used to find mutation points in the project by
-traversing the AST for the eligible files. Will write results into a database
-that will be used later for testing and generation of mutants.
+Analyze the project and save mutation points to the database.
 
-```sh
---mutant
-```
-The mutation operators to analyze for and save to the database. This option
-strongly affects the test and report phase.
+- `--allow-errors`: Allow compilation errors during analysis. This is useful
+  when clang can still extract useful information even though some translation
+  units do not parse cleanly.
 
-Mutants to operate on.
- - *all* : All mutants are generated.
- - *aor* : Arithmetical Operator Replacement.
- - *dcr* : Decision/Condition Requirement.
- - *lcr* : Logical Connector Replacement.
- - *lcrb* : Logical Connector Replacement (Bit-wise).
- - *ror* : Relational Operator Replacement.
- - *rorp* : Relational Operator Replacement (Pointer).
- - *sdl* : Statement Deletion.
- - *uoi* : Unary Operator Insertion.
+- `--compile-db`: Use a specific `compile_commands.json` instead of the paths
+  from config.
 
-```sh
---compile-db
-```
-Retrieve compilation parameters from a specific compilation-database. This can
-be used if the projects contains specific compilation-databases for ex.
-compilation targets or environments.
+- `--diff-from-stdin`: Only analyze and save mutants that fall within files
+  changed by the diff on stdin.
 
-```sh
---in
-```
-Specific input file to parse. By default, all files in the compilation database
-will be analyzed. This is normally only needed for toy examples and dextool
-mutates own internal tests.
+- `--fast-db-store`: Disable sqlite safety features to speed up database
+  writes. This can be much faster, but an interrupted write can corrupt the
+  database.
 
-```sh
---file-include
---file-exclude
-```
-Only the files that match at least one of the glob include patterns and none of
-the exclude will be analyzed. Default is "*" for include and none for exclude.
-All patterns are adjusted to be relative to root (default: .).  This option is
-good to use to restrict the analysis to only those files that are relevant
-because analyzing "redundant" files will take an unnecessary amount of time.
-The files that are matched are those in the `compile_commands.json` via
-`--compile-db`.
+- `--file-include`, `--file-exclude`: Restrict which entries from the
+  compilation database are analyzed. These filters are separate from
+  `--include` / `--exclude`, which control what is eligible for mutation.
 
-```sh
-# to analyze all files under include and src but exclude tests
-dextool mutate analyze --file-include "include/*" --file-include "src/*" --file-exclude "src/test/*"
-```
+- `--force-save`: Save all analyzed files even if dextool believes they are
+  unchanged.
 
-```sh
---fast-db-store
-```
-This de-activates sqlites safety against corrupting a database when it is being
-written to. It can speed up the time it takes to save mutants to by 10-100x but
-if it is ever interrupted during this process the database will be corrupted.
-This is a good option to use on a CI server which keeps backups of the database
-but not when using dextool manually, in the console.
+- `--id-algorithm`: Control how mutant ids are generated. Accepted values are
+  `relaxed` and `strict`.
 
-```sh
---force-save
-```
-Normally only changed files are saved to the database. This forces all files to
-be saved irregardless if they have changed or not. This may be needed if
-`#include`s significantly changes your code base.
+  `strict` ties ids to the full file contents.
+  `relaxed` ties ids to the surrounding scope, which reduces unnecessary
+  re-testing when unrelated parts of a file move.
 
-```sh
---no-prune
-```
-The default mode is to remove files and orphaned mutants when they are
-detected. This inactivates this by always not running a cleanup phase. This
-could be used in combination with `--diff-from-stdin` because only a couple of
-files are in the diff. By using `--no-prune` the files that are not changed
-will be kept in the database.
+- `--in`: Analyze a specific input file instead of reading all entries from the
+  compilation database.
 
-```sh
---schemata-mutants
-```
-Control how many mutants that a schemata at most should contain. The more
-mutants a schemata contains the higher is the likelihood that it will fail to
-compile.
+- `-m`, `--mutant`: Select which mutation kinds to discover and save. Accepted
+  values are `all`, `ror`, `rorp`, `lcr`, `aor`, `uoi`, `sdl`, `dcr`, `lcrb`,
+  `aors`, and `cr`.
 
-```sh
---schemata-min-mutants
-```
-Minimum number of mutants that must exist in a schema for it to be saved and
-then later on used in the test phase. It is used to avoid storing "junk"
-schemas that actually do not speed up the mutation testing phase.
+- `--no-prune`: Do not remove database entries for files that were not seen in
+  the current analyze run.
 
+- `--profile`: Print analyzer performance data.
 
-```sh
---schema-train
-```
-This option is used to *quickly* train the adaptable scheman on the code base
-by only compiling the scheman. By running `analyze` first with `--force-save`
-and then `test` with `--schema-train` and `--schema-only` 4-5 times it is
-possible to finish a training round in a short time.
+- `--schema-min-mutants`: Minimum number of mutants required before a schema is
+  saved.
 
-```sh
---threads
-```
-The number of threads to use when analyzing the program. By default as many
-threads as there are cores available are used.
+- `--schema-mutants`: Soft upper limit for how many mutants to place in one
+  schema.
+
+- `--system-compiler`: Derive system include paths from this compiler instead
+  of the compiler recorded in the compilation database.
+
+- `--threads`: Number of worker threads to use for analysis.
 
 ## Generate
 
-Generate-mode for the plugin.
+Generate a concrete mutated source file for one mutant.
 
-```sh
---id
-```
-Mutate the source code as mutant ID
+- `--id`: Required. The mutant id to materialize into source code.
+
+- `-m`, `--mutant`: Filter by mutation kind. Accepted values are `all`, `ror`,
+  `rorp`, `lcr`, `aor`, `uoi`, `sdl`, `dcr`, `lcrb`, `aors`, and `cr`.
+
+- Shared flags such as `--config`, `--db`, `--out`, `--include`, and
+  `--exclude` also apply.
 
 ## Report <a id="cmd-report"></a>
 
-Report-mode for the plugin. Is used to generate a result-report at any given
-moment (before, after or during mutation testing execution). Can also be used
-to generate specific result that helps a user improve test cases among other.
+Generate reports from the current mutation database.
 
-Not all `--section` are supported by all report `--style`s. `plain` supports
-all of them. The rest are implemented as needed and if it is feasible.
+- `--compile-db`: Override the compilation database used when report generation
+  needs compile-db-aware file information.
 
-```sh
---logdir
-```
-Directory to write log files to (default: .).
+- `--diff-from-stdin`: Restrict diff-aware report output to the changed lines
+  from stdin.
 
-```sh
---section
-```
-Sections to include in the report.
+- `--high-interest-mutants-nr`: Number of mutants to show in the high-interest
+  section.
+
+- `--logdir`: Output directory for generated report files. The default is `.`.
+
+- `-m`, `--mutant`: Deprecated for `report`. It is still accepted for backward
+  compatibility, but it no longer drives report generation.
+
+- `--profile`: Print report profiling information.
+
+- `--section`: Select report sections. Accepted values are `alive`, `killed`,
+  `all_mut`, `summary`, `mut_stat`, `tc_killed`, `tc_stat`, `tc_map`,
+  `tc_suggestion`, `tc_killed_no_mutants`, `tc_full_overlap`,
+  `tc_full_overlap_with_mutation_id`, `tc_groups`, `tc_min_set`,
+  `tc_similarity`, `tc_groups_similarity`, `mut_recommend_kill`, `diff`,
+  `tc_unique`, `marked_mutants`, and `trend`.
+
+- `--section-tc_stat-num`: Number of test cases to include in the `tc_stat`
+  report section.
+
+- `--section-tc_stat-sort`: Sort order for `tc_stat`. Accepted values are
+  `top` and `bottom`.
+
+- `--style`: Report format. Accepted values are `plain`, `compiler`, `json`,
+  and `html`.
+
+- `--test-metadata`: Path to a JSON file containing per-test metadata used by
+  some report views.
+
+Section support varies by report style. `plain` is the baseline and `compiler`
+follows the same content model but emits compiler-like diagnostics.
 
 | Section                          | plain | json | html |
 |----------------------------------|-------|------|------|
@@ -400,516 +257,388 @@ Sections to include in the report.
 | tc_unique                        |       | x    | (x)  |
 | trend                            | x     | x    | x    |
 
-**Note**: styles may have automatic support for sections which are always on,
-indicated by a (x)..
-
-**alive**: Only report alive mutants.
-
-**killed**: Only report killed Mutants.
-
-**all_mut**: Report all mutants.
-
-**summary**: A summary of the result such as the mutation score.
-
-**mut_stat**: The top N mutations *from* -> *to* that has survived (e.g. "-" -> "+").
-
-**tc_killed**: The mutants that each test case killed.
-
-**tc_stat**: Test case statistics based on the number of mutants that are killed.
-
-**tc_map**: Deprecated.
-
-**tc_suggestion**: Report per test case alive mutants that are in the same
-source code location as mutants the test case are killing.
-
-**tc_killed_no_mutants**: Provide a list of tests that killed no mutant. These
-tests are probably flawed.
-
-**tc_full_overlap**: Provide a list of tests that killed the exact same
-mutants. They may be redundant and candidates for removal.
-
-**tc_full_overlap_with_mutation_id**: Same as **tc_full_overlap** but include
-the mutant too. It makes it possible to do a deeper analysis of test cases.
-
-**tc_groups**: Test case groups.
-
-**tc_min_set**: Provide the minimal set of test cases needed in order to
-achieve the mutation score. It can be used to e.g. define a smoke screen test
-suite because the minimal set has the same verification coverage as the full
-test suite.
-
-**tc_similarity**: Provide a list of tests and to what degree they are similar
-in terms of mutants the kill. Use it to e.g. merge tests or remove redundant
-test cases.
-
-**tc_groups_similarity**: Compare the similarity between test groups. This is a
-"group" view compared to *tc_similarity*.
-
-**mut_recommend_kill**: Report a list of high priority mutants to kill.
-
-**diff**: Add a page that shows the diff as git would do it together with the
-mutants on the changed lines.
-
-**tc_unique**: For each test case report the mutants that the test case is the
-only one to kill. This can be used in the reverse that test cases that have no
-unique mutants may be redundant. Recommended to use in conjunction with
-**tc_similarity** for a deeper analysis.
-
-**marked_mutants**: List all manually marked mutants.
-
-**trend**: print the recorded mutation score, one for each day, and a trend of
-how it is predicted to change.
-
-```sh
---section-tc_stat-num
-```
-Number of test cases to report that killed a mutant (will affect the drop-down
-in the html-report).
-
-```sh
---section-tc_stat-sort
-```
-Sort order when reporting test case kill stat.
- - *top* : Sort from top to bottom.
- - *bottom* : Sort from bottom to top.
-
-```sh
---style
-```
-Kind of report to generate. Lets a user specify if the format of the report.
-This could be used if the report is to be pased into an excel-document, or
-viewed graphically in the browser etc.
- - *plain* : Generates a plain text summary of the result and prints it in the
-   terminal window.
- - *compiler* : Same as *plain* but in compiler-format.
- - *json* : Same as *plain* but in .json-format.
- - *html* : Generates an html-report with all the chosen sections. Is the main
-   way of inspect mutation testing result since many of the other commands for
-   *Report* is linked to this kind of report. Can be viewed in a browser by
-   opening the generated *index.html*-file directly.
+`(x)` means the style may emit the information implicitly or via a style-
+specific page even if the section is not a one-to-one toggle in that output
+format.
 
 ## Test
 
-Test-mode for the plugin. Injects a mutant into the source code, compiles the
-project to see if the mutants was valid and then executes the test suite in
-order to analyze whether or not the test suite detected the mutant. Will also
-check if the mutant caused an infinity-loop, or simply took longer time than
-usual, by utilizing the timeout-implementation.
+Execute mutation testing against the previously analyzed mutants.
 
-```sh
---build-cmd
-```
-Program/script used to build the application. Will be called to compile both
-the original program (sanity check) and to compile the program each time a
-mutant is injected.
+- `-L`: Restrict testing to specific files and line ranges. The format is
+  `<file>:<start>-<end>`.
 
-```sh
---dry-run
-```
-Do not write mutants to the filesystem. This is intended to be used by dextools
-internal tests to fejk mutation testing runs.
+  Example:
 
-```sh
---order
-```
-Determine in what order mutations are chosen.
- - *random* : Execute the mutations in a random order.
- - *consecutive* : Execute the mutations consecutive by the mutant id.
+  ```sh
+  dextool mutate test -L src/foo.cpp:10-20
+  ```
 
-```sh
---test-cmd
-```
-Program/script used to run the test suite. Will be called upon by *Mutate* in
-order to test the application (both for sanity-checks and when a mutant has
-been injected in the code).
+- `--build-cmd`: Command used to build the project and test binaries.
 
-```sh
---test-case-analyze-builtin
-```
-Builtin analyzer of output from testing frameworks to find failing test cases.
-Can be used in order to specify a framework used for testing and letting
-Dextool analyze the output from test-results according to that framework.
- - *gtest* : Analyzes the test case result according to the Googletest-format.
- - *ctest* : Analyzes the test case result according to the Ctest-format.
- - *makefile* : Analyzes the test case result according to the makefile-format.
+- `--cont-test-suite`: Enable the periodic sanity check that re-runs the test
+  suite with no mutant injected.
 
-```sh
---test-case-analyze-cmd
-```
-Program/script used to analyze the test execution result. Will be called upon
-by *Mutate* in order to analyze the tests for the application (both for
-sanity-checks and when a mutant has been injected in the code).
+- `--cont-test-suite-period`: How often the periodic sanity check runs, in
+  number of tested mutants.
 
-```sh
---test-timeout
-```
-Timeout to use for the test suite (msecs). This option lets the user manually
-set the timeout-limit. It is recommended to let *Mutate* use the builtin
-algorithm for this since the time it takes to execute test suites varies.
+- `--diff-from-stdin`: Restrict testing to mutants that fall within the diff on
+  stdin.
 
-```sh
---schema-check
-```
-An injected schemata should, when no mutant is activated, not affect the result
-of the test suite. This option execute the test cases after the schemata has
-been injected to see that all tests still pass. If it fails the specific
-schemata is discarded. This is a good sanity check to have active because
-schematan are still being developed and have been observed to sometimes
-negatively affect the test suite.
+- `--dry-run`: Exercise the control flow without writing mutants to the source
+  tree. Mainly useful for tests and experimentation.
 
-```sh
---schema-log
-```
-Save the schematan, as they are used, to a file by their ID-number for later
-analysis. This option is mostly intended for developers of dextool.
+- `--load-behavior`: Behavior when the load threshold is exceeded. Accepted
+  values are `nothing`, `slowdown`, and `halt`.
 
-```sh
---max-alive <nr>
-```
-Run the mutation testing until `nr` alive mutants have been found. Intended to
-be used when integrating mutation testing with pull requests to have an early
-halting condition.
+- `--load-threshold`: 15-minute load average threshold used by
+  `--load-behavior`. The default is the number of virtual cores plus three.
 
-```sh
---schema-only
-```
-Only use schematan for the test phase. Depending on the operators this mean
-that between 50-100% of the mutants can be tested pretty fast.
+- `--log-coverage`: Save the generated coverage-instrumented files for later
+  inspection.
 
-```sh
---schema-use
-```
-If schematan should be used. Dextool will start by trying to use all schematan
-that have mutants that are in the worklist. When all schematan are consumed
-dextool will fall back to the slower source code mutating.
+- `--max-alive`: Stop after this many alive mutants have been found. This is
+  only effective together with `-L` or `--diff-from-stdin`.
 
-```sh
---schemata-min-mutants
-```
-Minimum number of alive mutants that a schema must contain for it to be used.
-This is the starting value of the filtering process. Each schema that fail will
-increase the threshold because the tool assume that the probability of a schema
-to fail compiling is related to how many that have already failed to compile.
-This is to reduce the amount of wasted work (compiling invalid schemas).
+- `--max-runtime`: Stop the current test run after the given duration. Supported
+  units are `weeks`, `days`, `hours`, `minutes`, `seconds`, and `msecs`.
 
-```sh
---schema-parallel-mutants
-```
-How many mutants to test in parallel in a schema.
+  Example:
 
-```sh
---use-early-stop
-```
-If dextool should stop executing the test suite as soon as it finds one failing
-test case. The *precicion* of the reports containing sections about test cases
-will be lower because dextool hasn't gathered complete information. But this is
-usually not a problem and far offset by the significant reduction in execution
-time that this option can achieve.
+  ```sh
+  dextool mutate test --max-runtime "1 hours 30 minutes"
+  ```
 
-```sh
---max-runtime
-```
-To run mutation testing to completion can take a long time. This option
-configures that dextool should terminate testing after the specified time.
-This allows dextool to run for e.g. 3h, stop, generate a report and then
-restart. It thus gives continues feedback of the progress.
+- `--metadata`: Path to a JSON file used to increase testing priority for
+  mutants in specific files. The file format is currently:
 
-```sh
-dextool mutate test --max-runtime "1 hours 30 minutes 10 msecs"
-```
+  ```json
+  {
+    "file-prio": ["src/foo.cpp", "src/bar.cpp"]
+  }
+  ```
 
-```sh
---load-behavior
-```
-Running mutation testing is taxing on the IT infrastructure. This option
-configures how to behave when the load goes above the threshold.
- * nothing : ignore, do nothing. The default behavior.
- * slowdown : stop testing when the load goes above the threshold.
- * halt : stop testing.
+- `-m`, `--mutant`: Deprecated for `test`. It is still accepted for backward
+  compatibility, but the active mutation set comes from analysis/config.
 
-```sh
---load-threshold
-```
-The 15 minute loadavg threshold to control when the `--load-behavior` is
-triggered. By default it is set to the number of virtual cores on the computer.
+- `--no-skipped`: Disable the skip heuristic that can mark some covered mutants
+  as `skipped` without executing them individually.
 
-```sh
---metadata
-```
-Metadata parameter takes a json file as argument. It can be used for increasing testing priority for files included in the json structure.
+- `--order`: Choose the mutant execution order. Accepted values are `random`,
+  `consecutive`, and `bySize`. `bySize` is the current default.
+
+- `--schema-check`: Sanity-check a schema by running the test suite once with
+  the schema injected and no mutant activated.
+
+- `--schema-log`: Save generated schema source for later inspection.
+
+- `--schema-min-mutants`: Minimum number of alive mutants a schema must contain
+  before it is used in the test phase.
+
+- `--schema-only`: Stop after the schema-backed portion of testing completes.
+
+- `--schema-parallel-mutants`: Number of mutants to test in parallel inside one
+  schema execution.
+
+- `--schema-train`: Only compile schemas and run the training path for the
+  adaptive schema generator.
+
+- `--schema-use`: Enable schemata in the test phase.
+
+- `--test-case-analyze-builtin`: Built-in parser for test output. Accepted
+  values are `gtest`, `ctest`, `makefile`, and `test_cmd`.
+
+- `--test-case-analyze-cmd`: External command used to parse test output and
+  identify failing test cases.
+
+- `--test-cmd`: Command used to run the test suite.
+
+- `--test-cmd-checksum`: Compare test binary checksums before and after
+  mutation and only run binaries that changed.
+
+- `--test-timeout`: Fixed timeout for the test suite, in milliseconds. Setting
+  this disables the adaptive timeout derivation used by default.
+
+- `--timeout-scale`: Multiplier used when computing schema-related timeouts.
+
+- `--use-early-stop`: Stop executing test commands for a mutant as soon as one
+  test command fails.
 
 # Configuration File
 
-The template that is generated by
+The template written by:
+
 ```sh
 dextool mutate admin --init
 ```
 
-try to be self explaining. This section is thus focused on explaining the
-different categories (`[....]`).
+is the best starting point for a new project. The sections below describe every
+currently parsed TOML key.
+
+## General notes <a id="config-notes"></a>
+
+- Not every CLI flag has a TOML equivalent. Run-scoped flags such as `-L`,
+  `--diff-from-stdin`, `--profile`, `--log-coverage`, `--max-alive`,
+  `--max-runtime`, `--load-behavior`, `--load-threshold`, `--metadata`,
+  `--schema-log`, `--schema-only`, and `--no-skipped` are CLI-only today.
+
+- Many CLI names map cleanly to TOML keys, but not always with the same text.
+  For example, `--test-case-analyze-cmd` maps to `[mutant_test].analyze_cmd`,
+  `--test-timeout` maps to `[mutant_test].test_cmd_timeout`, and
+  `--timeout-scale` maps to `[schema].timeout_scale`.
 
 ## [workarea]
 
-Configuration of the directories that dextool is allowed to change files in.
+Controls the part of the source tree that mutate is allowed to change and
+report on.
 
-`root`: Defines the root directory that all phases of mutation testing will use.
- * the analyze phase will only store mutants that reside in the root or
-   sub-directories.
- * the test phase will only mutate files that is inside the root.
- * the report will make all paths relative to the root.
+- `root`: Root directory for analyze, test, and report.
 
-`include`: See below.
+- `include`: Glob patterns, relative to `root`, that are eligible for mutation.
 
-`exclude`: A project may want to further restrict what directories/files should
-be mutated inside the root. It could for example be so that the src and test is
-inside the same root. To discover all available mutants, C++ templates, the
-analyser must analyze test cases because templates are instantiated there. But
-it is obviously so that the tests should not be mutated. By configuring this
-option to `include=["src/*"]` it means that only the mutants inside
-`{root}/src` are saved in the database. This can be combined with `exclude` to
-remove e.g. files inside `src` for this example.
+- `exclude`: Glob patterns, relative to `root`, that are removed from the
+  mutation set even if they match `include`.
 
 ## [generic]
 
-Generic options that affect all phases that. The most important to configure
-here is the mutation operators to use (`mutants`). It affects what mutants are
-saved in the database, which ones are mutated and reported.
+Options shared across phases.
+
+- `mutants`: Default mutation kinds to use when no CLI mutation list is given.
+  Accepted values are `all`, `ror`, `rorp`, `lcr`, `aor`, `uoi`, `sdl`, `dcr`,
+  `lcrb`, `aors`, and `cr`.
 
 ## [analyze] <a id="config-analyze"></a>
 
-Options that affects the analyze phase.
+Options that affect the analyze phase.
 
-`id_algo`: Configures what algorithm to use when generating unique IDs for
-mutants.
-The default algorithm is `strict`. If any code in a file is changed
-then all mutants in that file are re-tested. The *diff* for testing is
-basically per file. The problem is obvious for this because the most common
-change is just a couple of lines in a file. This algorithm is *safe* but lead
-to unnecessary testing of mutants.
-The second algorithm is `relaxed`. It is *scope* aware. Mutants are unique
-within a file and within a scope. Only mutants within a scope are re-tested if
-the source code in the scope is changed. This thus basically mean that the
-algorithm works like "git diff". It only test mutants in scopes that have
-changed. It makes it faster to test a code change.
+- `include`: Glob patterns that select which compile-db entries are analyzed.
+
+- `exclude`: Glob patterns that remove compile-db entries from analysis.
+
+- `threads`: Number of analysis worker threads.
+
+- `prune`: If `true`, remove files and orphaned mutants that are no longer seen
+  during analysis.
+
+- `test_paths`: Files or directories that should be checksummed/timestamped so
+  mutate can tell when test inputs changed.
+
+- `test_include`: Glob patterns used when traversing `test_paths`.
+
+- `test_exclude`: Glob patterns excluded while traversing `test_paths`.
+
+- `id_algo`: Mutant id generation algorithm. Accepted values are `relaxed` and
+  `strict`.
 
 ## [schema]
 
-Schemata is a technique that inject multiple mutants at the same time in the
-SUT with code that allow them to be toggled one at a time. This make it
-possible to compile once and have hundreds of mutants in the binary at the same
-time. In short it cuts down on the compile+link time. It is highly recommended
-to enable this option because mutation testing becomes 50-10000% times faster
-(depending on the test suite runtime).
+Controls schema generation and schema-backed mutation testing.
 
-`use`: activate use of schematan.
+- `use`: Enable schemata.
 
-`runtime`: The option `inject` mean that dextool inject the runtime needed for
-mutation testing in all roots or those specified by `inject_runtime_impl`. This
-is a nice and automated process. If this doesn't work because you are running
-on an embedded system and need a modified schema runtime, linking errors etc
-then you can opt to use the `library` option. It means that you precompile the
-runtime and manually link with the library. Dextool will do no magic.
+- `runtime`: How the schema runtime is provided. Accepted values are `inject`
+  and `library`.
 
-`check_schemata`: This option check that there are no errors with the schema by
-executing the test suite once, after the schema is injected. The test suite
-should, if everything worked as expected, signal PASSED/no failure. If it
-failed in any way it means that there is a bug in the schema generator and it
-isn't just.
+- `inject_runtime_impl`: Optional array of `[path, language]` pairs limiting
+  runtime injection to specific files. `language` is typically `c` or `cpp`.
 
-`mutants_per_schema`: The approximate max number of mutants a schema should
-contain. Some compiles fail to compile when the source code is too big. This
-allows you to control how many mutants are injected.
+- `parallel_mutants`: Number of mutants to test in parallel inside one schema.
 
-`min_mutants_per_schema`: Minimum number of mutants a schema must contain for it to be used.
+- `min_mutants_per_schema`: Minimum number of mutants required before a schema
+  is stored or used.
 
-`inject_runtime_impl`: Inject the runtime in only these files.
+- `mutants_per_schema`: Soft upper limit for how many mutants a schema should
+  contain. `0` means no limit.
+
+- `check_schemata`: If `true`, run a sanity-check test pass after schema
+  injection.
+
+- `timeout_scale`: Multiplier used when computing schema-related timeouts.
 
 ## [coverage]
 
-An additional pass will be executed when either the program or the tests
-changes. This pass instrument the source code to see which functions are
-covered by the tests. Any mutants that is in a function that is not covered
-will be marked as alive. It is because for the test suite to even have a chance
-of killing a mutant it must execute the function/method the mutant reside in.
-This option can greatly speed up the testing of all mutants.
+Controls optional coverage-guided pruning.
 
-`use`: activate use of coverage.
-It is strongly recommended to also track the test files such that the coverage
-is automatically updated when the tests are changed (`generic.test_paths`).
+- `use`: Enable coverage-guided pruning.
 
-`runtime`: The option `inject` mean that dextool inject the runtime needed for
-mutation testing in all roots or those specified by `inject_runtime_impl`. This
-is a nice and automated process. If this doesn't work because you are running
-on an embedded system and need a modified schema runtime, linking errors etc
-then you can opt to use the `library` option. It means that you precompile the
-runtime and manually link with the library. Dextool will do no magic.
+- `runtime`: How the coverage runtime is provided. Accepted values are
+  `inject` and `library`.
 
-`inject_runtime_impl`: Inject the runtime in only these files.
+- `inject_runtime_impl`: Optional array of `[path, language]` pairs limiting
+  runtime injection to specific files.
 
 ## [database]
 
-Database options.
+Database location.
+
+- `db`: Path to the sqlite database file.
 
 ## [compiler]
 
-Options for the compiler such as extra flags to add or if a specific compiler
-should be used instead of the one found in the `compile_commands.json` file.
+Compiler-related adjustments made during analysis and generated code handling.
 
-`use_compiler_system_includes`: Extract all system includes from this compiler
-instead of the one that is used in `compile_commands.json`. This is important
-for e.g. cross compilers or older versions of GCC. A cross-compiler may point
-to a C++ stdlib that isn't compatible with clang which would lead to a total
-analysis failure. By *fooling* dextool to instead derived the system includes
-from another compiler it is still possible to complete the analysis phase.
+- `flags`: Extra compiler flags typically supplied from system configuration.
+
+- `extra_flags`: Extra compiler flags typically supplied from user/project
+  configuration.
+
+- `force_system_includes`: If `true`, pass discovered system include paths with
+  `-I` instead of `-isystem`.
+
+- `use_compiler_system_includes`: Compiler executable to derive system includes
+  from instead of the compiler recorded in `compile_commands.json`.
+
+- `allow_errors`: Allow compilation errors during analysis.
 
 ## [compile_commands]
 
-Configuration of which `compile_commands.json` to use and how it should be
-filtered.
+Controls how dextool finds and filters `compile_commands.json`.
 
-`filter`: Use to remove flags that aren't compatible with clang such as `-W`
-that only exist in GCC.
+- `search_paths`: Files and/or directories to search for compilation
+  databases.
 
-`skip_compiler_args`: Sometimes the first argument isn't the compiler. Dextool
-need to know where the compiler "start" in the argument list because the system
-includes are extracted from the compiler.
+- `filter`: Compile flags that should be removed before clang-based analysis.
+
+- `skip_compiler_args`: Number of leading arguments to skip before the real
+  compiler binary appears. Useful for wrappers or launchers.
 
 ## [mutant_test]
 
-Configuration of the test phase. This contains the most options because it is
-also the one that has to be highly flexible.
+Options for the test phase.
 
-`build_cmd`: Program/script used to build the application. Will be called to
-compile both the original program (sanity check) and to compile the program
-each time a mutant is injected.
+- `build_cmd`: Command used to build the project and tests.
 
-`test_cmd_dir`: The directory is analyzed for executables. All executables that
-are found then used as test case binaries. This is a convenient option to use
-when they are all in a directory easily accessible.
+- `test_cmd_dir`: Directories to scan for executable test binaries. At least
+  one of `test_cmd_dir` or `test_cmd` must be configured.
 
-`test_cmd_dir_search`: How `test_cmd_dir` is scanned for executables. Default
-is to scan recursively but if this is a problem because there are e.g.
-executable test data in sub directories the search mode can be changed to
-`shallow`.
+- `test_cmd_dir_search`: How `test_cmd_dir` is scanned. Accepted values are
+  `recursive` and `shallow`.
 
-`test_cmd_dir_flag`: The flags here are used when executing binaries found via
-`test_cmd_dir`. It is a convenient way of inactivating test cases in e.g.
-Googletest.
+- `test_cmd_dir_flag`: Extra arguments appended to each executable discovered
+  via `test_cmd_dir`.
 
-`test_cmd`: If `test_cmd_dir` isn't suitable to use then this allows a manual
-specification of the test binaries to execute together with, for the complex
-cases, also specifying the flags to use per command.
+- `test_cmd`: Explicit test command list. This can be a string, an array of
+  strings, or an array of command arrays.
 
-`test_cmd_timeout`: Timeout of the test suite. This should normally **not** be
-used. The default for dextool is to use a dynamic timeout that is derived by
-measuring the test suites execution time together with a timeout-re-test
-algorithm that re-execute timeouts together with increasing until no visible
-change is detected. By setting this option dextool will **not** derive the
-execution and will **not** use the timeout-re-test algorithm.
+- `test_cmd_timeout`: Fixed timeout for the test suite.
 
-`build_cmd_timeout`: Configures a timeout for the build command. Use if the
-build system can have intermittent lockups. The default is one hour.
+- `build_cmd_timeout`: Timeout for the build command.
 
-`analyze_cmd`: Configures dextool to call this command to analyze the output of
-the test suite to derived which test cases that exist, which ones that killed a
-mutant and stability. The intended use case of this option is embedded
-developers that use a minimal, custom test framework.
+- `analyze_cmd`: External command used to parse test output and identify test
+  cases.
 
-`analyze_using_builtin`: Use one or more of the builtin test framework
-analyzers.
+- `analyze_using_builtin`: Built-in test-output analyzers to use. Accepted
+  values are `gtest`, `ctest`, `makefile`, and `test_cmd`.
 
-`detected_new_test_case`: A programs test suite that evolve over time may add
-new test cases. This control how dextool will behave when it finds a new test
-case. Either just ignore it or re-test all mutants that has survived (alive) to
-see if the new test cases kill any of those that previously survived.
+- `order`: Mutant execution order. Accepted values are `random`,
+  `consecutive`, and `bySize`.
 
-`detected_dropped_test_case`: Configures what dextool should do with the stored
-information about a test case which it detects has been removed. Either just
-leave it as it is or remove it. If the test case is removed all mutants that
-the test case uniquely killed will be reset to `unknown` statues which will
-trigger them to be re-tested.
+- `detected_new_test_case`: Behavior when new test cases are detected.
+  Accepted values are `doNothing` and `resetAlive`.
 
-`oldest_mutants`: The tool is unaware of the tests and if they have changed.
-This is a configuration that tell the tool to re-test old mutants to see if
-anything has changed in the test suite. The re-test, if activated, of old
-mutants will only be done if there is nothing else to be done (the worklist is
-empty).
+- `detected_dropped_test_case`: Behavior when previously known test cases
+  disappear. Accepted values are `doNothing` and `remove`.
 
-`oldest_mutants_percentage`: Instead of hard coding a specific number of
-mutants this allows you to configure a percentage of the total number to test.
-This is the recommended way of configuring re-test of old mutants because then
-you do not need to tune it when the SUT grow in size.
+- `oldest_mutants`: Behavior for stale mutants when the main worklist is empty.
+  Accepted values are `nothing` and `test`.
 
-`parallel_test`: How many test binaries to run in parallel. If this option
-isn't set then dextool mutate will run as many as you have virtual cores.
+- `oldest_mutants_nr`: Absolute number of stale mutants to re-test.
 
-`use_early_stop`: The tool will stop executing test binaries as soon as one
-reports failed. This is useful if you have many test binaries because it cuts
-down on the test time. It is highly recommended to activate this option, which
-is why it is active by default. Note though that the report section
-`dead_test_case` and `overlap` will be less accurate because, obviously, not
-all test binaries are executed for each mutant but rather a subset. This can be
-alleviated somewhat by executing tests in random order. For google test this is
-`--gtest_shuffle`.
+- `oldest_mutants_percentage`: Percentage-based form of stale-mutant re-test.
 
-`continues_check_test_suite`: This option activates a test suite check that is
-ran periodically. It try to execute the test suite with zero mutants. If it
-ever fails it means that there is something wrong with the computer the tool is
-executing on and it will revert the previously gathered results and stop. This
-can happen when e.g. the disk becomes full.
+- `parallel_test`: Number of test commands to run in parallel.
 
-`continues_check_test_suite_period`: Configures how often to run the check,
-every X mutant.
+- `use_early_stop`: Stop running test commands for a mutant as soon as one
+  command fails.
 
-`test_cmd_checksum`: Compare the checksum of the test binaries with and without
-a mutant injected to determine which test binaries need to be executed. Only
-those that are different are executed because well, those where affected by the
-mutant. If no test binary is changed when the mutant is injected then the
-mutant is an equivalent mutant because the compiler managed to "optimize away"
-the modification. This option is recommended to activate because it cuts down
-on the test time and allows the tool to find equivalent mutants. But to use it
-it means that all `test_cmd` must binaries, it can not be e.g. "make test".
-This is obvious when you think about it because "make test" is never changed
-when a mutant is injected.
-This option also activate a checksum table of `test_cmd` - mutation
-status. If the checksum of the `test_cmd` match what is already known then that
-mutation status is used instead.
+- `continues_check_test_suite`: Periodically re-run the test suite with no
+  mutant injected to detect environmental problems.
 
-`max_test_cmd_output`: Limits the number of mbytes captured from the `test_cmd`
-executions. The limit is per `test_cmd`. This is used to prevent e.g.
-`test_cmd`s that execute in an infinite loop and spew out Gbyte of output from
-consuming all the available memory which lead to a crash of the plugin.  The
-default limit is 10 Mbyte. It should be enough for most reasonable `test_cmd`s.
+- `continues_check_test_suite_period`: Number of tested mutants between those
+  periodic sanity checks.
 
-`max_mem_usage_percentage`: Limit the max used memory. The limit is global for
-the host thus includes all programs that are executed. If the limit is reached
-the tool will start terminating `test_cmd`s to reduce the memory usage. A
-terminated `test_cmd` is marked as timeout. This is to re-test them later on to
-be **really** sure that they actually result in the host running out of memory
-and thus isn't a fluke.
+- `test_cmd_checksum`: Only run test binaries whose checksum changed after
+  mutation.
+
+- `max_test_cmd_output`: Per-test-command output capture limit, in megabytes.
+
+- `max_mem_usage_percentage`: Global host memory usage threshold. When the host
+  exceeds this percentage, running test commands may be terminated and retried
+  later.
 
 ## [report] <a id="config-report"></a>
 
-Configuration of the generated reports.
+Default report settings.
 
-`style`: The default report style to use when none is specified via the CLI.
+- `style`: Default report style. Accepted values are `plain`, `compiler`,
+  `json`, and `html`.
 
-`sections`: An array of the default sections to use when none are specified via
-the CLI.
+- `sections`: Default report sections. Accepted values are `alive`, `killed`,
+  `all_mut`, `summary`, `mut_stat`, `tc_killed`, `tc_stat`, `tc_map`,
+  `tc_suggestion`, `tc_killed_no_mutants`, `tc_full_overlap`,
+  `tc_full_overlap_with_mutation_id`, `tc_groups`, `tc_min_set`,
+  `tc_similarity`, `tc_groups_similarity`, `mut_recommend_kill`, `diff`,
+  `tc_unique`, `marked_mutants`, and `trend`.
 
-`high_interest_mutants_nr`: The number of mutants to show in the high interest
-mutants section.
+- `high_interest_mutants_nr`: Number of mutants to show in the high-interest
+  section.
+
+## [test_group] <a id="test_group"></a>
+
+User-defined report groupings for tests.
+
+- `[test_group.<name>].description`: Human-readable label for the group.
+
+- `[test_group.<name>].pattern`: Regex used to select tests into the group.
+  The syntax follows D `std.regex`.
+
+## [test] <a id="config-test"></a>
+
+Extra test metadata used by reports.
+
+- `metadata`: Path to a JSON file containing per-test metadata. The current
+  parser understands an array of objects with fields such as `name`, `text`,
+  `location.file`, `location.line`, and `redundant`.
+
+## Deprecated compatibility keys
+
+These keys are still recognized for backward compatibility unless otherwise
+noted, but new configs should use the replacement shown here.
+
+- `workarea.restrict`: Removed. Use `workarea.exclude` with glob patterns.
+
+- `generic.use_coverage`: Deprecated alias for `coverage.use`.
+
+- `generic.inject_runtime_impl`: Deprecated alias for
+  `coverage.inject_runtime_impl`.
+
+- `analyze.mutants_per_schema`: Deprecated alias for
+  `schema.mutants_per_schema`.
+
+- `analyze.min_mutants_per_schema`: Deprecated alias for
+  `schema.min_mutants_per_schema`.
+
+- `mutant_test.use_schemata`: Deprecated alias for `schema.use`.
+
+- `mutant_test.check_schemata`: Deprecated alias for `schema.check_schemata`.
 
 # Resources
 
-The runtime resources that are installed together with the tool such as the
-header that is injected for schemata can be overridden. Dextool mutate searches
-the following directories, in this order, for the resources:
+The runtime resources installed with mutate, such as schema and coverage
+runtime files, can be overridden by placing replacement files in a higher-
+priority data directory.
 
- * `$XDG_RUNTIME_DIR`/dextool/mutate
- * `which dextool`/data/mutate
- * `dirname $(which dextool)`/data/mutate
- * `$XDG_DATA_DIRS`/dextool/data/mutate
+Dextool searches for data files in this order:
 
-A user that wants to change the injected schemata header would for example add
-the `schemata_header.c` to `$XDG_RUNTIME_DIR/.local/share/dextool/data/mutate`
+- `$XDG_DATA_HOME/dextool`
+- `dirname(<dextool executable>)/data`
+- `dirname(dirname(<dextool executable>))/data`
+- each entry in `$XDG_DATA_DIRS` as `<dir>/dextool/data`
+
+Mutate resources themselves are resolved under the `mutate/` subdirectory. For
+example, overriding the injected schema implementation means providing:
+
+- `$XDG_DATA_HOME/dextool/mutate/schemata_header.c`
+
+or the same relative path inside one of the other higher-priority data search
+roots.
