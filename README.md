@@ -35,7 +35,9 @@ To build and run dextool, you will need the following packages:
  * [sqlite3](https://sqlite.org/download.html) >= 3.24.0
  * [D compiler](https://dlang.org/download.html). See the following files for
    the tested versions. They are guaranteed to work.
-   **NOTE** DMD do not seem to work. DMD v2.111.0 fail integration tests.
+   The current tested DMD range has the same minimum and maximum version.
+   DMD v2.112.0 builds and passes `make check`. Integration tests are still
+   not guaranteed when using DMD.
    * [dmd minimal version](Docker/partial/dmd_min_version)
    * [dmd max version](Docker/partial/dmd_latest_version)
    * [ldc minimal version](Docker/partial/ldc_min_version)

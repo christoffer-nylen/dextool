@@ -96,22 +96,26 @@ ExitStatusType runAnalyzer(const AbsolutePath dbPath, const AbsolutePath confFil
 
     SchemaQ schemaQ;
     bool[Path] changedDeps;
+    Path[] unchangedRoots;
+    NeedFullAnalyzeResult needFullAnalyzeRes;
     StoreActor.Address store;
     {
         auto db = refCounted(Database.make(dbPath));
 
-        auto needFullAnalyzeRes = needFullAnalyze(db, confFile);
+        needFullAnalyzeRes = needFullAnalyze(db, confFile);
 
         // if a dependency of a root file has been changed.
         changedDeps = dependencyAnalyze(db, needFullAnalyzeRes.status, fio);
         schemaQ = SchemaQ(db.schemaApi.getMutantProbability);
-
-        store = sys.spawn(&spawnStoreActor, flowCtrl, db, StoreConfig(analyzeConf,
-                schemaConf, covConf), fio, changedDeps.byKeyValue
-                .filter!(a => !a.value)
-                .map!(a => a.key)
-                .array, needFullAnalyzeRes);
+        unchangedRoots = changedDeps.byKeyValue
+            .filter!(a => !a.value)
+            .map!(a => a.key)
+            .array;
     }
+
+    auto storeDb = refCounted(Database.make(dbPath));
+    store = sys.spawn(&spawnStoreActor, flowCtrl, storeDb, StoreConfig(analyzeConf,
+            schemaConf, covConf), fio, unchangedRoots, needFullAnalyzeRes);
 
     // it crashes if the store actor try to call dextoolBinaryId. I don't know
     // why... TLS store trashed? But it works, somehow, if I put some writeln
@@ -155,9 +159,7 @@ ExitStatusType runAnalyzer(const AbsolutePath dbPath, const AbsolutePath confFil
     bool waiting = true;
     while (waiting) {
         try {
-            self.request(store, infTimeout).send(IsDone.init).then((bool x) {
-                waiting = !x;
-            });
+            self.request(store, infTimeout).send(IsDone.init).then((bool x) { waiting = !x; });
         } catch (ScopedActorException e) {
             logger.warning(e.error);
             return ExitStatusType.Errors;

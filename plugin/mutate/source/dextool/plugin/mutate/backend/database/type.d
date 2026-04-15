@@ -72,6 +72,15 @@ struct MutationEntry {
     MutationPoint mp;
     MutantTimeProfile profile;
     Language lang;
+
+    bool opEquals()(auto ref const typeof(this) rhs) @safe pure nothrow const {
+        return id == rhs.id
+            && file == rhs.file
+            && sloc == rhs.sloc
+            && mp == rhs.mp
+            && profile == rhs.profile
+            && lang == rhs.lang;
+    }
 }
 
 struct NextMutationEntry {

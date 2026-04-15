@@ -626,11 +626,13 @@ struct ArgParser {
                 admin.mutation = mutation;
         }
 
-        groups["analyze"] = &analyzerG;
-        groups["generate"] = &generateMutantG;
-        groups["test"] = &testMutantsG;
-        groups["report"] = &reportG;
-        groups["admin"] = &adminG;
+        () @trusted {
+            groups["analyze"] = &analyzerG;
+            groups["generate"] = &generateMutantG;
+            groups["test"] = &testMutantsG;
+            groups["report"] = &reportG;
+            groups["admin"] = &adminG;
+        }();
 
         if (args.length < 2) {
             logger.error("Missing command");

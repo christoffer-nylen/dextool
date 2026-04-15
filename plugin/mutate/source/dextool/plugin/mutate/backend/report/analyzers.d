@@ -1188,7 +1188,7 @@ struct ScoreTrendByCodeChange {
  * Files are grouped by day.
  * Files per day are sorted by lowest score first.
  */
-ScoreTrendByCodeChange reportTrendByCodeChange(ref Database db) @trusted nothrow {
+ScoreTrendByCodeChange reportTrendByCodeChange(ref Database db) @trusted {
     import dextool.plugin.mutate.backend.database.type : FileScore;
 
     Set!Path lastChangeFound;

@@ -38,19 +38,19 @@ You can install them via the install script at dlang.org.
 In the example below replace the compiler version with one of the supported.
 The version that is written below should only be seen as an example.
 
-Example (2021-12-30):
+Example (2026-04-15):
 
 ```sh
 mkdir -p ~/dlang
 wget https://dlang.org/install.sh -O ~/dlang/install.sh
 sudo chmod +777 ~/dlang/install.sh
-~/dlang/install.sh install ldc-1.30.0
+~/dlang/install.sh install ldc-1.42.0
 ~/dlang/install.sh install dub 
 ```
 
 Add the compilers to your `$PATH` variable:
 ```sh
-source ~/dlang/ldc-1.30.0/activate
+source ~/dlang/ldc-1.42.0/activate
 source ~/dlang/dub-1.22.0/activate
 ```
 

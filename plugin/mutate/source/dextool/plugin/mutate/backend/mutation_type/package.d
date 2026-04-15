@@ -73,7 +73,7 @@ private:
 
 immutable MutationKind[Mutation.Kind] fromInteralKindToUserKind;
 
-shared static this() {
+shared static this() @trusted {
     import std.traits : EnumMembers;
 
     static foreach (const group; EnumMembers!MutationKind) {

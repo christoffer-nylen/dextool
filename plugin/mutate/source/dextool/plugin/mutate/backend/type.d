@@ -33,7 +33,7 @@ struct MutationPoint {
     Offset offset;
     Mutation[] mutations;
 
-    bool opEquals()(auto ref const S s) @safe pure nothrow const @nogc {
+    bool opEquals()(auto ref const typeof(this) s) @safe pure nothrow const @nogc {
         return offset == s.offset && mutations == s.mutations;
     }
 }

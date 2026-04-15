@@ -24,20 +24,20 @@ struct Set(T) {
         return data.length;
     }
 
-    void add(T value) @safe pure nothrow {
+    void add(T value) @trusted pure nothrow {
         data[value] = (void[0]).init;
     }
 
-    void add(Set!T set) @safe pure nothrow {
+    void add(Set!T set) @trusted pure nothrow {
         add(set.data);
     }
 
-    void add(Type set) @safe pure nothrow {
+    void add(Type set) @trusted pure nothrow {
         foreach (key; set.byKey)
             data[key] = (void[0]).init;
     }
 
-    void add(Range)(Range r) @safe pure nothrow if (is(ElementType!Range == T)) {
+    void add(Range)(Range r) @trusted pure nothrow if (is(ElementType!Range == T)) {
         foreach (v; r)
             data[v] = (void[0]).init;
     }
