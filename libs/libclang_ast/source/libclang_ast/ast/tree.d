@@ -77,6 +77,25 @@ void accept(VisitorT)(scope const Cursor cursor, scope VisitorT visitor) @safe {
     }();
 }
 
+private bool beginDispatch(VisitorT)(scope const Cursor cursor,
+        scope VisitorT visitor) @safe {
+    if (!visitor.precondition)
+        return false;
+
+    static if (__traits(hasMember, VisitorT, "enterCursor")) {
+        if (!visitor.enterCursor(cursor))
+            return false;
+    }
+
+    return true;
+}
+
+private void endDispatch(VisitorT)(scope const Cursor cursor, scope VisitorT visitor) @safe {
+    static if (__traits(hasMember, VisitorT, "leaveCursor")) {
+        visitor.leaveCursor(cursor);
+    }
+}
+
 /** Static wrapping of the cursor followed by a passing it to the visitor.
  *
  * The cursor is wrapped in the class that corresponds to the kind of the
@@ -93,8 +112,10 @@ void dispatch(VisitorT)(scope const Cursor cursor, scope VisitorT visitor) @trus
     import libclang_ast.ast.nodes;
     import std.conv : to;
 
-    if (!visitor.precondition)
+    if (!beginDispatch(cursor, visitor))
         return;
+    scope (exit)
+        endDispatch(cursor, visitor);
 
     static if (__traits(hasMember, VisitorT, "ignoreCursors")) {
         const h = cursor.toHash;

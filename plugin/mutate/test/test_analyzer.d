@@ -5,8 +5,10 @@ Author: Joakim Brännström (joakim.brannstrom@gmx.com)
 */
 module dextool_test.test_analyzer;
 
-import std.file : copy;
-import std.path : relativePath, buildPath;
+import std.file : copy, mkdirRecurse;
+import std.format : format;
+import std.path : absolutePath, relativePath, buildPath;
+import std.stdio : File;
 
 import dextool.plugin.mutate.backend.database.standalone;
 import dextool.plugin.mutate.backend.database.type;
@@ -14,6 +16,81 @@ import dextool.plugin.mutate.backend.type;
 static import dextool.type;
 
 import dextool_test.utility;
+
+private enum fmtAnalyzeHangFiles = [
+    "src/format.cc",
+    "include/fmt/format-inl.h",
+    "include/fmt/format.h",
+    "include/fmt/core.h",
+];
+
+private void stageFmtAnalyzeHangSample(const ref TestEnv testEnv) {
+    foreach (dir; [
+            "src",
+            "include/fmt",
+            "build/test",
+            "test/gtest"
+        ]) {
+        mkdirRecurse((testEnv.outdir ~ dir).toString);
+    }
+
+    foreach (relPath; fmtAnalyzeHangFiles) {
+        copy((testData ~ buildPath("fmt_analyze_hang", relPath)).toString,
+                (testEnv.outdir ~ relPath).toString);
+    }
+}
+
+private void writeFmtAnalyzeCompileDb(const ref TestEnv testEnv, string name, bool posixMockVariant) {
+    const root = absolutePath(testEnv.outdir.toString);
+    const src = buildPath(root, "src", "format.cc");
+
+    const directory = posixMockVariant
+        ? buildPath(root, "build", "test")
+        : buildPath(root, "build");
+    const command = posixMockVariant
+        ? format("/usr/bin/c++ -DFMT_LOCALE -DGTEST_HAS_STD_WSTRING=1 -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING=1 -I%s -isystem %s -O3 -DNDEBUG -std=gnu++11 -o CMakeFiles/posix-mock-test.dir/__/src/format.cc.o -c %s",
+                buildPath(root, "include"), buildPath(root, "test", "gtest"), src)
+        : format("/usr/bin/c++ -DFMT_LOCALE -I%s -O3 -DNDEBUG -std=gnu++11 -o CMakeFiles/fmt.dir/src/format.cc.o -c %s",
+                buildPath(root, "include"), src);
+    const output = posixMockVariant
+        ? "test/CMakeFiles/posix-mock-test.dir/__/src/format.cc.o"
+        : "CMakeFiles/fmt.dir/src/format.cc.o";
+
+    File((testEnv.outdir ~ name).toString, "w").write(format(`[
+  {
+    "directory": "%s",
+    "command": "%s",
+    "file": "%s",
+    "output": "%s"
+  }
+]
+`, directory, command, src, output));
+}
+
+private auto runFmtAnalyzeWithTimeout(const ref TestEnv testEnv, string compileDb) {
+    const root = absolutePath(testEnv.outdir.toString);
+
+    return makeCommand("/usr/bin/timeout")
+        .setWorkdir(testEnv.outdir)
+        .throwOnExitStatus(false)
+        .addArg("45s")
+        .addArg(testEnv.dextool.toString)
+        .addArg("mutate")
+        .addArg("analyze")
+        .addArg("--profile")
+        .addArg("--out")
+        .addArg(root)
+        .addArg("--db")
+        .addArg(buildPath(root, defaultDb))
+        .addArg("--fast-db-store")
+        .addArg("--compile-db")
+        .addArg(buildPath(root, compileDb))
+        .addArg("--threads")
+        .addArg("1")
+        .addArg("--mutant")
+        .addArg("lcr")
+        .run;
+}
 
 // dfmt off
 
@@ -213,4 +290,43 @@ unittest {
     testConsecutiveSparseOrder!Re(["info: Removing orphaned.*",
                                   "info: .*/.* removed.*"
     ]).shouldNotBeIn(r1.output);
+}
+
+@(testId ~ "shall finish analyze for the fmt compile command")
+unittest {
+    mixin(EnvSetup(globalTestdir));
+
+    stageFmtAnalyzeHangSample(testEnv);
+    writeFmtAnalyzeCompileDb(testEnv, "compile_commands_entry1.json", false);
+
+    auto r = runFmtAnalyzeWithTimeout(testEnv, "compile_commands_entry1.json");
+
+    r.status.shouldEqual(0);
+    testConsecutiveSparseOrder!Re(["info: Analyzed 1/1 .*src/format.cc"]).shouldBeIn(r.output);
+}
+
+@(testId ~ "shall finish analyze for the fmt posix mock compile command")
+unittest {
+    mixin(EnvSetup(globalTestdir));
+
+    stageFmtAnalyzeHangSample(testEnv);
+    writeFmtAnalyzeCompileDb(testEnv, "compile_commands_entry2.json", true);
+
+    auto r = runFmtAnalyzeWithTimeout(testEnv, "compile_commands_entry2.json");
+
+    r.status.shouldEqual(0);
+    testConsecutiveSparseOrder!Re(["info: Analyzed 1/1 .*src/format.cc"]).shouldBeIn(r.output);
+}
+
+@(testId ~ "shall honor a requested analyzer thread count")
+unittest {
+    mixin(EnvSetup(globalTestdir));
+
+    auto r = makeDextoolAnalyze(testEnv)
+        .addInputArg(testData ~ "all_kinds_of_abs_mutation_points.cpp")
+        .addPostArg(["--threads", "1"])
+        .addPostArg(["--verbose-module", "analyze=trace"])
+        .run;
+
+    testConsecutiveSparseOrder!Re([`trace: Using 1 analyzer worker\(s\)`]).shouldBeIn(r.output);
 }

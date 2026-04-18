@@ -15,7 +15,7 @@ module dextool.plugin.mutate.backend.analyze;
 
 import core.thread : Thread;
 import logger = std.experimental.logger;
-import std.algorithm : map, filter, joiner, cache, max;
+import std.algorithm : map, filter, joiner, cache;
 import std.array : array, appender, empty;
 import std.concurrency;
 import std.datetime : dur, Duration;
@@ -88,11 +88,15 @@ ExitStatusType runAnalyzer(const AbsolutePath dbPath, const AbsolutePath confFil
 
     auto sys = makeSystem;
 
-    auto flowCtrl = sys.spawn(&spawnFlowControl, () {
-        const x = analyzeConf.poolSize == 0 ? (totalCPUs + 1) : analyzeConf.poolSize;
-        // TODO: investigate further why <4 lead to a livelock of the analyzer.
-        return max(x, 4);
-    }());
+    const analyzerPoolSize = () {
+        if (analyzeConf.poolSize <= 0)
+            return cast(uint) (totalCPUs + 1);
+
+        return cast(uint) analyzeConf.poolSize;
+    }();
+    log.tracef("Using %s analyzer worker(s)", analyzerPoolSize);
+
+    auto flowCtrl = sys.spawn(&spawnFlowControl, analyzerPoolSize);
 
     SchemaQ schemaQ;
     bool[Path] changedDeps;
@@ -907,8 +911,10 @@ struct Analyze {
         log.info("Analyzing ", fileToAnalyze);
         RefCounted!Ast ast;
         {
+            log.tracef("%s stage: makeTranslationUnit begin", fileToAnalyze);
             auto tu = ctx.makeTranslationUnit(fileToAnalyze,
                     commandsForFileToAnalyze.flags.completeFlags);
+            log.tracef("%s stage: makeTranslationUnit end", fileToAnalyze);
             if (tu.hasParseErrors) {
                 logDiagnostic(tu);
                 log.warningf("Compile error in %s", fileToAnalyze);
@@ -918,30 +924,43 @@ struct Analyze {
                 }
             }
 
+            log.tracef("%s stage: toMutateAst begin", fileToAnalyze);
             auto res = toMutateAst(tu.cursor, fio, valLoc);
+            log.tracef("%s stage: toMutateAst end", fileToAnalyze);
             ast = res.ast;
+            log.tracef("%s stage: saveDependencies begin", fileToAnalyze);
             saveDependencies(commandsForFileToAnalyze.flags, result.root, res.dependencies);
+            log.tracef("%s stage: saveDependencies end", fileToAnalyze);
             log!"analyze.pass_clang".trace(ast.toString);
         }
 
         auto codeMutants = () {
+            log.tracef("%s stage: toMutants begin", fileToAnalyze);
             auto mutants = toMutants(ast.ptr, fio, valLoc, kinds);
+            log.tracef("%s stage: toMutants end", fileToAnalyze);
             log!"analyze.pass_mutant".trace(mutants);
 
+            log.tracef("%s stage: filterMutants begin", fileToAnalyze);
             log!"analyze.pass_filter".trace("filter mutants");
             mutants = filterMutants(fio, mutants);
             log!"analyze.pass_filter".trace(mutants);
+            log.tracef("%s stage: filterMutants end", fileToAnalyze);
 
-            return toCodeMutants(mutants, fio, tstream, idGenConf);
+            log.tracef("%s stage: toCodeMutants begin", fileToAnalyze);
+            auto codeMutants = toCodeMutants(mutants, fio, tstream, idGenConf);
+            log.tracef("%s stage: toCodeMutants end", fileToAnalyze);
+            return codeMutants;
         }();
         debug logger.trace(codeMutants);
 
         {
+            log.tracef("%s stage: toSchemata begin", fileToAnalyze);
             auto schemas = toSchemata(ast.ptr, fio, codeMutants, conf.sq);
             log!"analyze.pass_schema".trace(schemas);
             log.tracef("path dedup count:%s length_acc:%s", ast.paths.count,
                     ast.paths.lengthAccum);
             result.schematas = schemas.getFragments;
+            log.tracef("%s stage: toSchemata end", fileToAnalyze);
         }
 
         {
