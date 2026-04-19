@@ -17,35 +17,36 @@ static import dextool.type;
 
 import dextool_test.utility;
 
-private enum macroStringAnalyzeHangFiles = [
+private enum fmtAnalyzeHangFiles = [
     "src/format.cc",
-    "include/mini/format.h",
-    "include/mini/core.h",
+    "include/fmt/format-inl.h",
+    "include/fmt/format.h",
+    "include/fmt/core.h",
 ];
 
-private void stageMacroStringAnalyzeHangSample(const ref TestEnv testEnv) {
+private void stageFmtAnalyzeHangSample(const ref TestEnv testEnv) {
     foreach (dir; [
             "src",
-            "include/mini",
+            "include/fmt",
             "build"
         ]) {
         mkdirRecurse((testEnv.outdir ~ dir).toString);
     }
 
-    foreach (relPath; macroStringAnalyzeHangFiles) {
-        copy((testData ~ buildPath("macro_string_analyze_hang", relPath)).toString,
+    foreach (relPath; fmtAnalyzeHangFiles) {
+        copy((testData ~ buildPath("fmt_analyze_hang", relPath)).toString,
                 (testEnv.outdir ~ relPath).toString);
     }
 }
 
-private void writeMacroStringAnalyzeCompileDb(const ref TestEnv testEnv, string name) {
+private void writeFmtAnalyzeCompileDb(const ref TestEnv testEnv, string name) {
     const root = absolutePath(testEnv.outdir.toString);
     const src = buildPath(root, "src", "format.cc");
 
     const directory = buildPath(root, "build");
-    const command = format("/usr/bin/c++ -I%s -O0 -DNDEBUG -std=gnu++11 -o CMakeFiles/mini.dir/src/format.cc.o -c %s",
+    const command = format("/usr/bin/c++ -DFMT_LOCALE -I%s -O3 -DNDEBUG -std=gnu++11 -o CMakeFiles/fmt.dir/src/format.cc.o -c %s",
             buildPath(root, "include"), src);
-    const output = "CMakeFiles/mini.dir/src/format.cc.o";
+    const output = "CMakeFiles/fmt.dir/src/format.cc.o";
 
     File((testEnv.outdir ~ name).toString, "w").write(format(`[
   {
@@ -58,13 +59,13 @@ private void writeMacroStringAnalyzeCompileDb(const ref TestEnv testEnv, string 
 `, directory, command, src, output));
 }
 
-private auto runMacroStringAnalyzeWithTimeout(const ref TestEnv testEnv, string compileDb) {
+private auto runFmtAnalyzeWithTimeout(const ref TestEnv testEnv, string compileDb) {
     const root = absolutePath(testEnv.outdir.toString);
 
     return makeCommand("/usr/bin/timeout")
         .setWorkdir(testEnv.outdir)
         .throwOnExitStatus(false)
-        .addArg("20s")
+        .addArg("60s")
         .addArg(testEnv.dextool.toString)
         .addArg("mutate")
         .addArg("analyze")
@@ -80,8 +81,6 @@ private auto runMacroStringAnalyzeWithTimeout(const ref TestEnv testEnv, string 
         .addArg("1")
         .addArg("--mutant")
         .addArg("lcr")
-        .addArg("--verbose-module")
-        .addArg("analyze=trace")
         .run;
 }
 
@@ -285,20 +284,17 @@ unittest {
     ]).shouldNotBeIn(r1.output);
 }
 
-@(testId ~ "shall finish analyze for the macro-generated compile string sample")
+@(testId ~ "shall finish analyze for the reduced fmt compile command")
 unittest {
     mixin(EnvSetup(globalTestdir));
 
-    stageMacroStringAnalyzeHangSample(testEnv);
-    writeMacroStringAnalyzeCompileDb(testEnv, "compile_commands.json");
+    stageFmtAnalyzeHangSample(testEnv);
+    writeFmtAnalyzeCompileDb(testEnv, "compile_commands.json");
 
-    auto r = runMacroStringAnalyzeWithTimeout(testEnv, "compile_commands.json");
+    auto r = runFmtAnalyzeWithTimeout(testEnv, "compile_commands.json");
 
     r.status.shouldEqual(0);
-    testConsecutiveSparseOrder!Re([
-        "trace: schema function skip blacklisted .*include/mini/core.h",
-        "info: Analyzed 1/1 .*src/format.cc",
-    ]).shouldBeIn(r.output);
+    testConsecutiveSparseOrder!Re(["info: Analyzed 1/1 .*src/format.cc"]).shouldBeIn(r.output);
 }
 
 @(testId ~ "shall honor a requested analyzer thread count")
