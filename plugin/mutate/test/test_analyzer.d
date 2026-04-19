@@ -65,7 +65,7 @@ private auto runFmtAnalyzeWithTimeout(const ref TestEnv testEnv, string compileD
     return makeCommand("/usr/bin/timeout")
         .setWorkdir(testEnv.outdir)
         .throwOnExitStatus(false)
-        .addArg("60s")
+        .addArg("20s")
         .addArg(testEnv.dextool.toString)
         .addArg("mutate")
         .addArg("analyze")
@@ -284,7 +284,7 @@ unittest {
     ]).shouldNotBeIn(r1.output);
 }
 
-@(testId ~ "shall finish analyze for the reduced fmt compile command")
+@(testId ~ "shall finish analyze for the reduced fmt include-only compile command")
 unittest {
     mixin(EnvSetup(globalTestdir));
 
