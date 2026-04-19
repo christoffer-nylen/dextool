@@ -17,44 +17,35 @@ static import dextool.type;
 
 import dextool_test.utility;
 
-private enum fmtAnalyzeHangFiles = [
+private enum macroStringAnalyzeHangFiles = [
     "src/format.cc",
-    "include/fmt/format-inl.h",
-    "include/fmt/format.h",
-    "include/fmt/core.h",
+    "include/mini/format.h",
+    "include/mini/core.h",
 ];
 
-private void stageFmtAnalyzeHangSample(const ref TestEnv testEnv) {
+private void stageMacroStringAnalyzeHangSample(const ref TestEnv testEnv) {
     foreach (dir; [
             "src",
-            "include/fmt",
-            "build/test",
-            "test/gtest"
+            "include/mini",
+            "build"
         ]) {
         mkdirRecurse((testEnv.outdir ~ dir).toString);
     }
 
-    foreach (relPath; fmtAnalyzeHangFiles) {
-        copy((testData ~ buildPath("fmt_analyze_hang", relPath)).toString,
+    foreach (relPath; macroStringAnalyzeHangFiles) {
+        copy((testData ~ buildPath("macro_string_analyze_hang", relPath)).toString,
                 (testEnv.outdir ~ relPath).toString);
     }
 }
 
-private void writeFmtAnalyzeCompileDb(const ref TestEnv testEnv, string name, bool posixMockVariant) {
+private void writeMacroStringAnalyzeCompileDb(const ref TestEnv testEnv, string name) {
     const root = absolutePath(testEnv.outdir.toString);
     const src = buildPath(root, "src", "format.cc");
 
-    const directory = posixMockVariant
-        ? buildPath(root, "build", "test")
-        : buildPath(root, "build");
-    const command = posixMockVariant
-        ? format("/usr/bin/c++ -DFMT_LOCALE -DGTEST_HAS_STD_WSTRING=1 -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING=1 -I%s -isystem %s -O3 -DNDEBUG -std=gnu++11 -o CMakeFiles/posix-mock-test.dir/__/src/format.cc.o -c %s",
-                buildPath(root, "include"), buildPath(root, "test", "gtest"), src)
-        : format("/usr/bin/c++ -DFMT_LOCALE -I%s -O3 -DNDEBUG -std=gnu++11 -o CMakeFiles/fmt.dir/src/format.cc.o -c %s",
-                buildPath(root, "include"), src);
-    const output = posixMockVariant
-        ? "test/CMakeFiles/posix-mock-test.dir/__/src/format.cc.o"
-        : "CMakeFiles/fmt.dir/src/format.cc.o";
+    const directory = buildPath(root, "build");
+    const command = format("/usr/bin/c++ -I%s -O0 -DNDEBUG -std=gnu++11 -o CMakeFiles/mini.dir/src/format.cc.o -c %s",
+            buildPath(root, "include"), src);
+    const output = "CMakeFiles/mini.dir/src/format.cc.o";
 
     File((testEnv.outdir ~ name).toString, "w").write(format(`[
   {
@@ -67,13 +58,13 @@ private void writeFmtAnalyzeCompileDb(const ref TestEnv testEnv, string name, bo
 `, directory, command, src, output));
 }
 
-private auto runFmtAnalyzeWithTimeout(const ref TestEnv testEnv, string compileDb) {
+private auto runMacroStringAnalyzeWithTimeout(const ref TestEnv testEnv, string compileDb) {
     const root = absolutePath(testEnv.outdir.toString);
 
     return makeCommand("/usr/bin/timeout")
         .setWorkdir(testEnv.outdir)
         .throwOnExitStatus(false)
-        .addArg("45s")
+        .addArg("20s")
         .addArg(testEnv.dextool.toString)
         .addArg("mutate")
         .addArg("analyze")
@@ -89,6 +80,8 @@ private auto runFmtAnalyzeWithTimeout(const ref TestEnv testEnv, string compileD
         .addArg("1")
         .addArg("--mutant")
         .addArg("lcr")
+        .addArg("--verbose-module")
+        .addArg("analyze=trace")
         .run;
 }
 
@@ -292,30 +285,20 @@ unittest {
     ]).shouldNotBeIn(r1.output);
 }
 
-@(testId ~ "shall finish analyze for the fmt compile command")
+@(testId ~ "shall finish analyze for the macro-generated compile string sample")
 unittest {
     mixin(EnvSetup(globalTestdir));
 
-    stageFmtAnalyzeHangSample(testEnv);
-    writeFmtAnalyzeCompileDb(testEnv, "compile_commands_entry1.json", false);
+    stageMacroStringAnalyzeHangSample(testEnv);
+    writeMacroStringAnalyzeCompileDb(testEnv, "compile_commands.json");
 
-    auto r = runFmtAnalyzeWithTimeout(testEnv, "compile_commands_entry1.json");
-
-    r.status.shouldEqual(0);
-    testConsecutiveSparseOrder!Re(["info: Analyzed 1/1 .*src/format.cc"]).shouldBeIn(r.output);
-}
-
-@(testId ~ "shall finish analyze for the fmt posix mock compile command")
-unittest {
-    mixin(EnvSetup(globalTestdir));
-
-    stageFmtAnalyzeHangSample(testEnv);
-    writeFmtAnalyzeCompileDb(testEnv, "compile_commands_entry2.json", true);
-
-    auto r = runFmtAnalyzeWithTimeout(testEnv, "compile_commands_entry2.json");
+    auto r = runMacroStringAnalyzeWithTimeout(testEnv, "compile_commands.json");
 
     r.status.shouldEqual(0);
-    testConsecutiveSparseOrder!Re(["info: Analyzed 1/1 .*src/format.cc"]).shouldBeIn(r.output);
+    testConsecutiveSparseOrder!Re([
+        "trace: schema function skip blacklisted .*include/mini/core.h",
+        "info: Analyzed 1/1 .*src/format.cc",
+    ]).shouldBeIn(r.output);
 }
 
 @(testId ~ "shall honor a requested analyzer thread count")
