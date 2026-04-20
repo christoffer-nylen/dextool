@@ -3,20 +3,20 @@
 **Dextool** is a framework for writing plugins using libclang. The main focus
 is tools for testing and static analysis.
 
-The plugins in a standard installation of Dextool are:
- - Analyze. Analyze C/C++ code to generate complexity numbers such as McCabe.
+The plugins in the default build and packaged installation of Dextool are:
  - C TestDouble. Analyze C code to generate a test double implementation.
  - C++ TestDouble. Analyze C++ code to generate a test double implementation.
  - Mutate. Mutation testing tool for C/C++.
- - UML. Analyze C/C++ code to generate PlantUML diagrams.
+
+Additional plugin code for Analyze, UML, and the example plugin remains in the
+source tree, but it is not part of the default build or packaged install.
 
 ## Plugin Status
 
- * **Analyze**: production ready.
  * **C TestDouble**: production ready. The API of the generated code and how it behaves is stable.
  * **C++ TestDouble**: production ready. The API of the generated code and how it behaves is stable.
  * [**Mutate**](plugin/mutate/README.md): production ready.
- * **UML**: beta.
+ * **Analyze** and **UML** source code remain in-tree, but they are not part of the default build or packaged install.
 
 ## Installation
 
@@ -46,7 +46,9 @@ build. Which mean that for a *normal* user it is ldc that you should use.
 
 Most of them can be installed using your package manager.
 
-Installation instructions for Ubuntu is available [here](doc/install).
+Ubuntu source-build instructions are available in [doc/install/UBUNTU.md](doc/install/UBUNTU.md).
+Maintainer notes for the Debian/Ubuntu package and Launchpad PPA workflow are
+available in [doc/install/UBUNTU_APT.md](doc/install/UBUNTU_APT.md).
 Dockerfile are another alternative (they MAY be outdated until the CI is fixed
 to check them so if they fail for you ping me on github):
 
@@ -70,6 +72,12 @@ cd build
 cmake -DCMAKE_INSTALL_PREFIX=/path/to/where/to/install/dextool/binaries ..
 make install
 ```
+
+The default CMake build installs the following binaries:
+ - `dextool`
+ - `dextool-ctestdouble`
+ - `dextool-cpptestdouble`
+ - `dextool-mutate`
 
 Done! Have fun.
 Don't be shy to report any issue that you find.

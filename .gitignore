@@ -14,6 +14,24 @@ docs/
 tmp/
 resources/version.txt
 
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/*.debhelper.log
+debian/files
+debian/*.substvars
+debian/dextool/
+debian/tmp/
+*.deb
+*.ddeb
+*.build
+*.buildinfo
+*.changes
+
+/build-*/
+/obj-*-linux-gnu/
+/Testing/
+/cmakeExtractDMDSystemLinker
+
 binary_size.txt
 dub.selections.json
 .autobuild.bin

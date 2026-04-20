@@ -1,0 +1,9 @@
+dextool (5.3-1) unstable; urgency=medium
+
+  * Add Debian packaging for Ubuntu PPA builds and future Debian/Ubuntu
+    archive work.
+  * Package the dextool frontend together with ctestdouble, cpptestdouble,
+    and mutate.
+  * Install mutate runtime assets under /usr/share/dextool/data/mutate.
+
+ -- Joakim Brännström <joakim.brannstrom.public@gmx.com>  Mon, 20 Apr 2026 00:00:00 +0000

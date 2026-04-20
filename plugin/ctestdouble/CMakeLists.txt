@@ -31,7 +31,7 @@ build_d_executable(
 
 collect_binary_in_root(${EXE_NAME})
 
-install(TARGETS ${EXE_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS ${EXE_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 list(REMOVE_ITEM SRC_FILES ${CMAKE_SOURCE_DIR}/plugin/source/dextool/plugin/main/standard.d)
 

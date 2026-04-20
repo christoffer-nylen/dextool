@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CMAKE_BUILD_PARALLEL_LEVEL = 1
+#
+# dpkg-buildflags exports DFLAGS in a GNU-style form (for example `-frelease`).
+# This project builds D sources with the DMD-compatible `ldmd2` frontend, which
+# does not accept those flags. The release-mode D flags still come from the
+# project's CMake configuration via CMAKE_BUILD_TYPE=Release.
+export DFLAGS =
+export DFLAGS_FOR_BUILD =
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DD_COMPILER=ldmd2 \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DLOW_MEM=ON \
+		-DDEXTOOL_USE_MOLD=OFF \
+		-DDEXTOOL_BUILD_PLUGIN_ANALYZE=OFF \
+		-DDEXTOOL_BUILD_PLUGIN_CTESTDOUBLE=ON \
+		-DDEXTOOL_BUILD_PLUGIN_CPPTESTDOUBLE=ON \
+		-DDEXTOOL_BUILD_PLUGIN_EXAMPLE=OFF \
+		-DDEXTOOL_BUILD_PLUGIN_MUTATE=ON \
+		-DDEXTOOL_BUILD_PLUGIN_UML=OFF
+
+override_dh_auto_test:
+	@echo "Skipping dh_auto_test during package builds; run the documented validation workflow before uploading."

@@ -50,8 +50,9 @@ set the corresponding fields in that file instead of having long chains of
 commands to execute in the terminal (it is usually more simple that way,
 reduces clutter in the terminal and increase usability for coming test
 sessions). The information listed below can also be viewed by executing
-*dextool mutate --help* in a terminal window, but with a shorter and less
-detailed explanation.
+one of mutate's built-in help commands in a terminal window, for example
+*dextool mutate report --help*, but with a shorter and less detailed
+explanation.
 
 ## General
 
@@ -907,9 +908,13 @@ header that is injected for schemata can be overridden. Dextool mutate searches
 the following directories, in this order, for the resources:
 
  * `$XDG_RUNTIME_DIR`/dextool/mutate
- * `which dextool`/data/mutate
- * `dirname $(which dextool)`/data/mutate
+ * `dirname(<dextool executable>)/data/mutate`
+ * `dirname(dirname(<dextool executable>))/data/mutate`
  * `$XDG_DATA_DIRS`/dextool/data/mutate
 
+When `XDG_DATA_DIRS` is unset, dextool falls back to the XDG default search
+path `/usr/local/share:/usr/share`, which means packaged installs resolve
+resources from `/usr/share/dextool/data/mutate`.
+
 A user that wants to change the injected schemata header would for example add
-the `schemata_header.c` to `$XDG_RUNTIME_DIR/.local/share/dextool/data/mutate`
+the `schemata_header.c` to `$XDG_RUNTIME_DIR`/dextool/mutate

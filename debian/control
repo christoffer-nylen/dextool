@@ -1,0 +1,28 @@
+Source: dextool
+Section: devel
+Priority: optional
+Maintainer: Joakim Brännström <joakim.brannstrom.public@gmx.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ clang,
+ cmake,
+ ldc,
+ libclang-dev,
+ libsqlite3-dev,
+ llvm-dev
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/joakim-brannstrom/dextool
+Vcs-Browser: https://github.com/joakim-brannstrom/dextool
+Vcs-Git: https://github.com/joakim-brannstrom/dextool.git
+
+Package: dextool
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends}
+Description: C/C++ tooling for test doubles and mutation testing
+ Dextool is a framework for C and C++ tooling built on top of libclang.
+ .
+ This package ships the dextool frontend together with the packaged plugin set:
+ ctestdouble, cpptestdouble, and mutate.

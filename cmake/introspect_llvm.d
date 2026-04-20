@@ -70,7 +70,6 @@ string[] osSpecificLinkerFlag() {
 
 string llvmLibs() {
     const string[] base = osSpecificLinkerFlag;
-    const string[] libdir = ["-Wl,-rpath", llvmLibdir];
 
     // sometimes llvm-config forget the dependency on c and c++ stdlib
     const string[] deps = ["-lstdc++", "-lc", "-lm"];
@@ -92,7 +91,7 @@ string llvmLibs() {
                 (AbsLibrary a) => cast(string) a ~ s1, (PartialLibrary a) => cast(string) a ~ s1);
     }();
 
-    return (base ~ libdir ~ [llvm].dup ~ deps).joiner(" ").toUTF8;
+    return (base ~ [llvm].dup ~ deps).joiner(" ").toUTF8;
 }
 
 string llvmVersion() {
@@ -146,7 +145,7 @@ string llvmLibClang() {
 string llvmClangFlags() {
     const string[] base = osSpecificLinkerFlag;
 
-    const string[] libdir = ["-L" ~ llvmLibdir, "-Wl,-rpath", llvmLibdir];
+    const string[] libdir = ["-L" ~ llvmLibdir];
 
     return (base ~ libdir).dup.joiner(" ").toUTF8;
 }

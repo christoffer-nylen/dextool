@@ -103,10 +103,10 @@ collect_binary_in_root(${EXE_NAME})
 create_link(${EXE_NAME} ${CMAKE_CURRENT_LIST_DIR}/data ${CMAKE_BINARY_DIR}/data/mutate)
 create_link(${EXE_NAME} ${CMAKE_CURRENT_LIST_DIR}/data ${CMAKE_CURRENT_BINARY_DIR}/data/mutate)
 
-install(TARGETS ${EXE_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS ${EXE_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 file(GLOB_RECURSE DATA_FILES ${CMAKE_CURRENT_LIST_DIR}/data/*)
-install(FILES ${DATA_FILES} DESTINATION ${CMAKE_INSTALL_PREFIX}/data/mutate)
+install(FILES ${DATA_FILES} DESTINATION ${DEXTOOL_INSTALL_MUTATE_DATA_DIR})
 
 compile_d_unittest(mutate "${SRC};${ANALYZE_SRC};${CMAKE_CURRENT_LIST_DIR}/ut_main.d" "${flags}" "" "dextool_mutate_database;dextool_proc;dextool_automem;dextool_colorlog;dextool_blob_model;dextool_dextool;dextool_libclang_ast;dextool_clang_extensions;dextool_miniorm;dextool_d2sqlite3;dextool_toml;dextool_arsd;dextool_cachetools;dextool_mylib")
 
@@ -128,7 +128,7 @@ target_compile_definitions(dextool_coverage_runtime PRIVATE DEXTOOL_STRONG_ATTR)
 add_library(dextool_schema_runtime data/schemata_header.c)
 target_compile_definitions(dextool_schema_runtime PRIVATE DEXTOOL_STRONG_ATTR)
 
-install(TARGETS dextool_schema_runtime dextool_coverage_runtime ARCHIVE DESTINATION lib)
+install(TARGETS dextool_schema_runtime dextool_coverage_runtime ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 add_executable(test_schemata_c_header ${CMAKE_CURRENT_LIST_DIR}/test/test_schemata_c_header.cpp)
 target_include_directories(test_schemata_c_header PRIVATE ${CMAKE_CURRENT_LIST_DIR}/data)

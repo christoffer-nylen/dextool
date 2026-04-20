@@ -138,10 +138,12 @@ AbsolutePath xdgConfigHome() {
 
 /// The prefered search order for data files.
 AbsolutePath[] xdgDataDirs() {
-    return environment.get("XDG_DATA_DIRS").splitter(':').map!(a => AbsolutePath(a)).array;
+    return environment.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share")
+        .splitter(':').map!(a => AbsolutePath(a)).array;
 }
 
 /// The prefered search order for config files.
 AbsolutePath[] xdgConfigDirs() {
-    return environment.get("XDG_CONFIG_DIRS").splitter(':').map!(a => AbsolutePath(a)).array;
+    return environment.get("XDG_CONFIG_DIRS", "/etc/xdg")
+        .splitter(':').map!(a => AbsolutePath(a)).array;
 }
